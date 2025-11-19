@@ -46,8 +46,8 @@
 
 1. **Clonar el repositorio**
 ```bash
-git clone https://github.com/c0rresita/AutoInjeccion-Tool.git
-cd AutoInjeccion-Tool
+git clone https://github.com/c0rresita/CodeSpace
+cd CodeSpace
 ```
 
 2. **Instalar dependencias**
