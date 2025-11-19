@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - ShareCode</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            color: #4ec9b0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 30px;
+            font-size: 0.9em;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #4ec9b0;
+        }
+
+        .stat-label {
+            color: #969696;
+            font-size: 0.85em;
+        }
+
+        .container {
+            padding: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .filters {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 0.85em;
+            color: #969696;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: #d4d4d4;
+            font-size: 0.9em;
+            min-width: 150px;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+
+        .btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #1177bb;
+        }
+
+        .btn-danger {
+            background: #d16969;
+        }
+
+        .btn-danger:hover {
+            background: #e07979;
+        }
+
+        .workspaces-table {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #252526;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #4ec9b0;
+            border-bottom: 1px solid #3e3e42;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #2d2d30;
+        }
+
+        th i {
+            margin-left: 5px;
+            font-size: 0.8em;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        tr:hover {
+            background: #252526;
+        }
+
+        .workspace-name {
+            font-weight: 600;
+            color: #4ec9b0;
+            cursor: pointer;
+        }
+
+        .workspace-name:hover {
+            text-decoration: underline;
+        }
+
+        .plan-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .plan-FREE {
+            background: #3e3e42;
+            color: #969696;
+        }
+
+        .plan-PRO {
+            background: #4ec9b0;
+            color: #1e1e1e;
+        }
+
+        .plan-ENTERPRISE {
+            background: #c586c0;
+            color: #1e1e1e;
+        }
+
+        .size-cell {
+            font-family: 'Courier New', monospace;
+            color: #ce9178;
+        }
+
+        .date-cell {
+            color: #969696;
+            font-size: 0.9em;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #969696;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #3e3e42;
+            color: #d4d4d4;
+        }
+
+        .action-btn.delete:hover {
+            color: #d16969;
+        }
+
+        .users-count {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #569cd6;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: #2d2d30;
+            border-top: 1px solid #3e3e42;
+        }
+
+        .page-info {
+            color: #969696;
+            font-size: 0.9em;
+        }
+
+        .page-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #969696;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #969696;
+        }
+
+        .empty-state i {
+            font-size: 3em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #4ec9b0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: #969696;
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .close-modal:hover {
+            color: #d4d4d4;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .tabs {
+            display: flex;
+            background: #252526;
+            border-bottom: 1px solid #3e3e42;
+            padding: 0 30px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            background: none;
+            border: none;
+            color: #969696;
+            cursor: pointer;
+            font-size: 0.95em;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #d4d4d4;
+        }
+
+        .tab.active {
+            color: #4ec9b0;
+            border-bottom-color: #4ec9b0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .discount-code {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-info {
+            flex: 1;
+        }
+
+        .code-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #4ec9b0;
+            font-family: monospace;
+        }
+
+        .code-details {
+            color: #969696;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #4ec9b033;
+            color: #4ec9b0;
+        }
+
+        .status-inactive {
+            background: #d1696933;
+            color: #d16969;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #969696;
+            font-size: 0.9em;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 10px;
+            color: #d4d4d4;
+            font-size: 0.95em;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <i data-feather="shield" style="width: 24px; height: 24px;"></i>
+            Panel de Administración
+        </h1>
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" id="totalWorkspaces">0</div>
+                <div class="stat-label">Workspaces</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalUsers">0</div>
+                <div class="stat-label">Usuarios</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalStorage">0 GB</div>
+                <div class="stat-label">Almacenamiento</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="activeNow">0</div>
+                <div class="stat-label">Activos ahora</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegación -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('workspaces')">
+            <i data-feather="folder" style="width: 16px; height: 16px;"></i>
+            Workspaces
+        </button>
+        <button class="tab" onclick="switchTab('activeUsers')">
+            <i data-feather="users" style="width: 16px; height: 16px;"></i>
+            Usuarios Activos
+        </button>
+    </div>
+
+    <!-- Tab: Workspaces -->
+    <div class="tab-content active" id="workspacesTab">
+    <div class="container">
+        <div class="filters">
+            <div class="filter-group">
+                <label>Buscar</label>
+                <input type="text" id="searchInput" placeholder="Nombre del workspace...">
+            </div>
+            
+            <div class="filter-group">
+                <label>Tamaño mínimo</label>
+                <select id="sizeFilter">
+                    <option value="0">Todos</option>
+                    <option value="1">1 MB+</option>
+                    <option value="10">10 MB+</option>
+                    <option value="50">50 MB+</option>
+                    <option value="100">100 MB+</option>
+                    <option value="500">500 MB+</option>
+                    <option value="1024">1 GB+</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Ordenar por</label>
+                <select id="sortBy">
+                    <option value="lastAccess">Último acceso</option>
+                    <option value="created">Fecha creación</option>
+                    <option value="size">Tamaño</option>
+                    <option value="files">Archivos</option>
+                    <option value="users">Usuarios</option>
+                </select>
+            </div>
+            
+            <div class="filter-group" style="margin-left: auto;">
+                <label>&nbsp;</label>
+                <button class="btn" onclick="applyFilters()">
+                    <i data-feather="filter" style="width: 14px; height: 14px;"></i>
+                    Filtrar
+                </button>
+            </div>
+            
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button class="btn btn-danger" onclick="cleanupExpired()">
+                    <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                    Limpiar expirados
+                </button>
+            </div>
+        </div>
+
+        <div class="workspaces-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('name')">Workspace <i data-feather="chevron-down"></i></th>
+                        <th onclick="sortTable('size')">Tamaño <i data-feather="chevron-down"></i></th>
+                        <th onclick="sortTable('files')">Archivos <i data-feather="chevron-down"></i></th>
+                        <th onclick="sortTable('users')">Usuarios <i data-feather="chevron-down"></i></th>
+                        <th onclick="sortTable('created')">Creado <i data-feather="chevron-down"></i></th>
+                        <th onclick="sortTable('lastAccess')">Último acceso <i data-feather="chevron-down"></i></th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="workspacesBody">
+                    <tr>
+                        <td colspan="7" class="loading">
+                            <div>Cargando workspaces...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="pagination">
+                <div class="page-info" id="pageInfo">
+                    Mostrando 0 de 0 workspaces
+                </div>
+                <div class="page-controls">
+                    <button class="btn" onclick="previousPage()" id="prevBtn" disabled>
+                        <i data-feather="chevron-left" style="width: 14px; height: 14px;"></i>
+                        Anterior
+                    </button>
+                    <button class="btn" onclick="nextPage()" id="nextBtn" disabled>
+                        Siguiente
+                        <i data-feather="chevron-right" style="width: 14px; height: 14px;"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <!-- End Tab: Workspaces -->
+
+    <!-- Tab: Usuarios -->
+    <div class="tab-content" id="usersTab">
+    <div class="container">
+        <div class="filters">
+            <div class="filter-group">
+                <label>Buscar usuario</label>
+                <input type="text" id="userSearchInput" placeholder="Nombre o email...">
+            </div>
+            
+            <div class="filter-group">
+                <label>Plan</label>
+                <select id="userPlanFilter">
+                    <option value="">Todos</option>
+                    <option value="FREE">Free</option>
+                    <option value="PRO">Pro</option>
+                    <option value="ENTERPRISE">Enterprise</option>
+                </select>
+            </div>
+            
+            <div class="filter-group" style="margin-left: auto;">
+                <label>&nbsp;</label>
+                <button class="btn" onclick="loadUsers()">
+                    <i data-feather="refresh-cw" style="width: 14px; height: 14px;"></i>
+                    Actualizar
+                </button>
+            </div>
+        </div>
+
+        <div class="workspaces-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Plan</th>
+                        <th>Workspaces</th>
+                        <th>Fecha registro</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody">
+                    <tr>
+                        <td colspan="5" class="loading">
+                            <div>Cargando usuarios...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+    <!-- End Tab: Usuarios -->
+
+    <!-- Tab: Códigos de Descuento -->
+    <div class="tab-content" id="discountsTab">
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #4ec9b0;">Códigos de Descuento</h2>
+            <button class="btn" onclick="showCreateCodeModal()">
+                <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                Crear Código
+            </button>
+        </div>
+
+        <div id="discountsContainer">
+            <div class="loading">Cargando códigos...</div>
+        </div>
+    </div>
+    </div>
+    <!-- End Tab: Workspaces -->
+
+    <!-- Tab: Usuarios Activos -->
+    <div class="tab-content" id="activeUsersTab">
+        <div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #4ec9b0;">Usuarios Activos en Tiempo Real</h2>
+                <button class="btn" onclick="loadActiveUsers()">
+                    <i data-feather="refresh-cw" style="width: 14px; height: 14px;"></i>
+                    Actualizar
+                </button>
+            </div>
+
+            <div class="stats-grid" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i data-feather="users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="totalActiveUsers">0</div>
+                        <div class="stat-label">Usuarios Únicos</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i data-feather="monitor"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="totalActiveSessions">0</div>
+                        <div class="stat-label">Sesiones Activas</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i data-feather="folder"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="workspacesWithUsers">0</div>
+                        <div class="stat-label">Workspaces Activos</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspaces-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Workspace</th>
+                            <th>Usuarios Únicos</th>
+                            <th>Sesiones Abiertas</th>
+                            <th>Última Actividad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeUsersBody">
+                        <tr>
+                            <td colspan="4" class="loading">
+                                <div>Cargando usuarios activos...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- End Tab: Usuarios Activos -->
+
+    <!-- Modal de confirmación -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirmar acción</h2>
+                <button class="close-modal" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalMessage">
+                ¿Estás seguro de realizar esta acción?
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmAction()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para crear código de descuento -->
+    <div class="modal" id="createCodeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Crear Código de Descuento</h2>
+                <button class="close-modal" onclick="closeCreateCodeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Código</label>
+                    <input type="text" id="newCodeName" placeholder="WELCOME10" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label>Descuento</label>
+                    <input type="number" id="newCodeDiscount" placeholder="10" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="newCodeType">
+                        <option value="percentage">Porcentaje (%)</option>
+                        <option value="fixed">Cantidad fija (€)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Usos máximos (opcional)</label>
+                    <input type="number" id="newCodeMaxUses" placeholder="100" min="1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeCreateCodeModal()">Cancelar</button>
+                <button class="btn" style="background: #4ec9b0;" onclick="createDiscountCode()">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workspaces = [];
+        let filteredWorkspaces = [];
+        let currentPage = 1;
+        let pageSize = 20;
+        let currentSort = { field: 'lastAccess', order: 'desc' };
+        let pendingAction = null;
+
+        // Cargar workspaces
+        async function loadWorkspaces() {
+            try {
+                const response = await fetch('/api/admin/workspaces');
+                const data = await response.json();
+                
+                workspaces = data.workspaces;
+                updateStats(data.stats);
+                applyFilters();
+            } catch (error) {
+                console.error('Error cargando workspaces:', error);
+                showError();
+            }
+        }
+
+        // Actualizar estadísticas
+        function updateStats(stats) {
+            document.getElementById('totalWorkspaces').textContent = stats.total;
+            document.getElementById('totalUsers').textContent = stats.totalUsers;
+            document.getElementById('totalStorage').textContent = formatSize(stats.totalStorage, true);
+            document.getElementById('activeNow').textContent = stats.activeNow;
+        }
+
+        // Aplicar filtros
+        function applyFilters() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const minSize = parseInt(document.getElementById('sizeFilter').value) * 1024 * 1024;
+            
+            filteredWorkspaces = workspaces.filter(ws => {
+                const matchSearch = !search || ws.id.toLowerCase().includes(search);
+                const matchSize = ws.size >= minSize;
+                
+                return matchSearch && matchSize;
+            });
+            
+            sortWorkspaces();
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Ordenar workspaces
+        function sortWorkspaces() {
+            const sortBy = document.getElementById('sortBy').value;
+            currentSort.field = sortBy;
+            
+            filteredWorkspaces.sort((a, b) => {
+                let valA = a[sortBy];
+                let valB = b[sortBy];
+                
+                if (sortBy === 'lastAccess' || sortBy === 'created') {
+                    valA = new Date(valA || 0);
+                    valB = new Date(valB || 0);
+                }
+                
+                if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        // Ordenar tabla
+        function sortTable(field) {
+            if (currentSort.field === field) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.order = 'asc';
+            }
+            
+            document.getElementById('sortBy').value = field;
+            sortWorkspaces();
+            renderTable();
+        }
+
+        // Renderizar tabla
+        function renderTable() {
+            const tbody = document.getElementById('workspacesBody');
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const page = filteredWorkspaces.slice(start, end);
+            
+            if (page.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div>
+                                <i data-feather="inbox"></i>
+                                <div>No se encontraron workspaces</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            tbody.innerHTML = page.map(ws => `
+                <tr>
+                    <td>
+                        <span class="workspace-name" onclick="openWorkspace('${ws.id}')">
+                            ${ws.id}
+                        </span>
+                    </td>
+                    <td class="size-cell">${formatSize(ws.size)}</td>
+                    <td>${ws.files}</td>
+                    <td>
+                        <div class="users-count">
+                            <i data-feather="users" style="width: 14px; height: 14px;"></i>
+                            ${ws.users}
+                        </div>
+                    </td>
+                    <td class="date-cell">${formatDate(ws.created)}</td>
+                    <td class="date-cell">${formatDate(ws.lastAccess)}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="action-btn" onclick="viewWorkspace('${ws.id}')" title="Ver detalles">
+                                <i data-feather="eye" style="width: 16px; height: 16px;"></i>
+                            </button>
+                            <button class="action-btn" onclick="downloadWorkspace('${ws.id}')" title="Descargar">
+                                <i data-feather="download" style="width: 16px; height: 16px;"></i>
+                            </button>
+                            <button class="action-btn delete" onclick="confirmDelete('${ws.id}')" title="Eliminar">
+                                <i data-feather="trash-2" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            feather.replace();
+            updatePagination();
+        }
+
+        // Actualizar paginación
+        function updatePagination() {
+            const total = filteredWorkspaces.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            
+            document.getElementById('pageInfo').textContent = 
+                `Mostrando ${start}-${end} de ${total} workspaces`;
+            
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = end >= total;
+        }
+
+        // Navegación
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage * pageSize < filteredWorkspaces.length) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        // Acciones
+        function openWorkspace(id) {
+            window.open(`/${id}`, '_blank');
+        }
+
+        function viewWorkspace(id) {
+            window.open(`/${id}`, '_blank');
+        }
+
+        async function downloadWorkspace(id) {
+            window.open(`/api/export/${id}`, '_blank');
+        }
+
+        function confirmDelete(id) {
+            const workspace = workspaces.find(ws => ws.id === id);
+            document.getElementById('modalMessage').textContent = 
+                `¿Eliminar el workspace "${id}"? Esta acción no se puede deshacer.`;
+            
+            pendingAction = { type: 'delete', id };
+            document.getElementById('confirmModal').classList.add('active');
+        }
+
+        async function confirmAction() {
+            if (!pendingAction) return;
+            
+            if (pendingAction.type === 'delete') {
+                await deleteWorkspace(pendingAction.id);
+            } else if (pendingAction.type === 'cleanup') {
+                await cleanupExpiredWorkspaces();
+            }
+            
+            closeModal();
+            pendingAction = null;
+        }
+
+        async function deleteWorkspace(id) {
+            try {
+                const response = await fetch(`/api/admin/workspaces/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    await loadWorkspaces();
+                }
+            } catch (error) {
+                console.error('Error eliminando workspace:', error);
+            }
+        }
+
+        function cleanupExpired() {
+            document.getElementById('modalMessage').textContent = 
+                '¿Eliminar todos los workspaces inactivos por más de 30 días?';
+            
+            pendingAction = { type: 'cleanup' };
+            document.getElementById('confirmModal').classList.add('active');
+        }
+
+        async function cleanupExpiredWorkspaces() {
+            try {
+                const response = await fetch('/api/admin/cleanup', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    await loadWorkspaces();
+                }
+            } catch (error) {
+                console.error('Error en limpieza:', error);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+            pendingAction = null;
+        }
+
+        // Utilidades
+        function formatSize(bytes, short = false) {
+            if (bytes === 0) return '0 B';
+            
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            const value = bytes / Math.pow(k, i);
+            
+            if (short && i >= 3) {
+                return value.toFixed(2);
+            }
+            
+            return value.toFixed(2) + ' ' + sizes[i];
+        }
+
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            
+            const d = new Date(date);
+            const now = new Date();
+            const diff = now - d;
+            
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 60) return `Hace ${minutes}m`;
+            if (hours < 24) return `Hace ${hours}h`;
+            if (days < 30) return `Hace ${days}d`;
+            
+            return d.toLocaleDateString('es-ES');
+        }
+
+        function showError() {
+            const tbody = document.getElementById('workspacesBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="empty-state">
+                        <div>
+                            <i data-feather="alert-circle"></i>
+                            <div>Error al cargar workspaces</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            feather.replace();
+        }
+
+        // Event listeners
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('sizeFilter').addEventListener('change', applyFilters);
+
+        // ====================
+        // TAB SWITCHING
+        // ====================
+        function switchTab(tabName) {
+            // Ocultar todos los tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Mostrar tab seleccionado
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.closest('.tab').classList.add('active');
+
+            // Cargar datos según el tab
+            if (tabName === 'activeUsers') {
+                loadActiveUsers();
+            } else if (tabName === 'users') {
+                loadUsers();
+            } else if (tabName === 'discounts') {
+                loadDiscountCodes();
+            }
+            
+            feather.replace();
+        }
+
+        // ====================
+        // USUARIOS ACTIVOS
+        // ====================
+        async function loadActiveUsers() {
+            try {
+                const response = await fetch('/api/admin/active-users');
+                const data = await response.json();
+                renderActiveUsers(data);
+            } catch (error) {
+                console.error('Error cargando usuarios activos:', error);
+            }
+        }
+
+        function renderActiveUsers(data) {
+            // Actualizar stats
+            document.getElementById('totalActiveUsers').textContent = data.totalUniqueUsers;
+            document.getElementById('totalActiveSessions').textContent = data.totalSessions;
+            document.getElementById('workspacesWithUsers').textContent = data.activeWorkspaces.length;
+
+            const tbody = document.getElementById('activeUsersBody');
+            
+            if (data.activeWorkspaces.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <div>
+                                <i data-feather="users"></i>
+                                <div>No hay usuarios activos en este momento</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                feather.replace();
+                return;
+            }
+
+            tbody.innerHTML = data.activeWorkspaces.map(ws => `
+                <tr>
+                    <td>
+                        <span class="workspace-name" onclick="openWorkspace('${ws.id}')">
+                            ${ws.id}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="users-count">
+                            <i data-feather="users" style="width: 14px; height: 14px;"></i>
+                            ${ws.uniqueUsers}
+                        </div>
+                    </td>
+                    <td>${ws.totalSessions}</td>
+                    <td class="date-cell">${formatDate(new Date())}</td>
+                </tr>
+            `).join('');
+
+            feather.replace();
+        }
+
+        // ====================
+        // USUARIOS
+        // ====================
+        let users = [];
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                const data = await response.json();
+                users = data.users;
+                renderUsers();
+            } catch (error) {
+                console.error('Error cargando usuarios:', error);
+            }
+        }
+
+        function renderUsers() {
+            const searchTerm = document.getElementById('userSearchInput')?.value.toLowerCase() || '';
+            const planFilter = document.getElementById('userPlanFilter')?.value || '';
+
+            let filtered = users.filter(user => {
+                const matchesSearch = user.name.toLowerCase().includes(searchTerm) || 
+                                    user.email.toLowerCase().includes(searchTerm);
+                const matchesPlan = !planFilter || user.plan === planFilter;
+                return matchesSearch && matchesPlan;
+            });
+
+            const tbody = document.getElementById('usersBody');
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            <div>
+                                <i data-feather="users"></i>
+                                <div>No hay usuarios registrados</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                feather.replace();
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(user => `
+                <tr>
+                    <td><strong>${user.name}</strong></td>
+                    <td>${user.email}</td>
+                    <td><span class="plan-badge plan-${user.plan}">${user.plan}</span></td>
+                    <td>${user.workspacesCount}</td>
+                    <td>${formatDate(user.created)}</td>
+                </tr>
+            `).join('');
+
+            feather.replace();
+        }
+
+        // Event listeners para usuarios
+        document.getElementById('userSearchInput')?.addEventListener('input', renderUsers);
+        document.getElementById('userPlanFilter')?.addEventListener('change', renderUsers);
+
+        // ====================
+        // CÓDIGOS DE DESCUENTO
+        // ====================
+        let discountCodes = [];
+
+        async function loadDiscountCodes() {
+            try {
+                const response = await fetch('/api/admin/discounts');
+                const data = await response.json();
+                discountCodes = data.codes;
+                renderDiscountCodes();
+            } catch (error) {
+                console.error('Error cargando códigos:', error);
+            }
+        }
+
+        function renderDiscountCodes() {
+            const container = document.getElementById('discountsContainer');
+            
+            if (discountCodes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="tag"></i>
+                        <div>No hay códigos de descuento creados</div>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            container.innerHTML = discountCodes.map(code => `
+                <div class="discount-code">
+                    <div class="code-info">
+                        <div class="code-name">${code.code}</div>
+                        <div class="code-details">
+                            ${code.discount}${code.type === 'percentage' ? '%' : '€'} de descuento
+                            • Usos: ${code.uses}${code.maxUses ? '/' + code.maxUses : ''}
+                            <span class="status-badge ${code.active ? 'status-active' : 'status-inactive'}">
+                                ${code.active ? 'Activo' : 'Inactivo'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="code-actions">
+                        <button class="btn btn-small" onclick="toggleDiscountCode('${code.code}')">
+                            <i data-feather="${code.active ? 'x' : 'check'}" style="width: 12px; height: 12px;"></i>
+                            ${code.active ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button class="btn btn-small btn-danger" onclick="deleteDiscountCode('${code.code}')">
+                            <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            feather.replace();
+        }
+
+        function showCreateCodeModal() {
+            document.getElementById('createCodeModal').classList.add('active');
+        }
+
+        function closeCreateCodeModal() {
+            document.getElementById('createCodeModal').classList.remove('active');
+            document.getElementById('newCodeName').value = '';
+            document.getElementById('newCodeDiscount').value = '';
+            document.getElementById('newCodeMaxUses').value = '';
+        }
+
+        async function createDiscountCode() {
+            const code = document.getElementById('newCodeName').value.trim().toUpperCase();
+            const discount = document.getElementById('newCodeDiscount').value;
+            const type = document.getElementById('newCodeType').value;
+            const maxUses = document.getElementById('newCodeMaxUses').value;
+
+            if (!code || !discount) {
+                alert('Por favor completa todos los campos obligatorios');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/discounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, discount, type, maxUses })
+                });
+
+                if (response.ok) {
+                    closeCreateCodeModal();
+                    loadDiscountCodes();
+                    alert('Código creado exitosamente');
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Error al crear código');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al crear código');
+            }
+        }
+
+        async function toggleDiscountCode(code) {
+            try {
+                const response = await fetch(`/api/admin/discounts/${code}`, {
+                    method: 'PATCH'
+                });
+
+                if (response.ok) {
+                    loadDiscountCodes();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function deleteDiscountCode(code) {
+            if (!confirm(`¿Eliminar el código ${code}?`)) return;
+
+            try {
+                const response = await fetch(`/api/admin/discounts/${code}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadDiscountCodes();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Inicializar
+        feather.replace();
+        loadWorkspaces();
+
+        // Auto-refresh cada 30 segundos
+        setInterval(loadWorkspaces, 30000);
+    </script>
+</body>
+</html>
