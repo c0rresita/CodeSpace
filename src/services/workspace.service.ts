@@ -78,12 +78,11 @@ export async function cleanupExpiredWorkspaces(): Promise<void> {
                 const workspaceId = file.replace('.json', '');
                 workspaces.delete(workspaceId);
                 cleaned++;
-                console.log(`Workspace expirado eliminado: ${workspaceId}`);
             }
         }
 
         if (cleaned > 0) {
-            console.log(`Limpieza completada: ${cleaned} workspace(s) eliminado(s)`);
+            console.log(`🧹 Limpieza: ${cleaned} workspace(s) expirado(s) eliminado(s)`);
         }
     } catch (error) {
         console.error('Error en limpieza de workspaces:', error);
@@ -118,7 +117,7 @@ export async function initWorkspace(workspaceId: string, password: string | null
             structure: {
                 'README.md': { 
                     type: 'file', 
-                    content: '# Bienvenido a ShareCode\n\nEste es tu workspace colaborativo.\n\nPuedes crear archivos y carpetas desde la barra lateral.' 
+                    content: '# Bienvenido a CodeSpace\n\nEste es tu workspace colaborativo.\n\nPuedes crear archivos y carpetas desde la barra lateral.' 
                 }
             },
             users: 0,

@@ -1,8 +1,8 @@
-# 🚀 ShareCode - Editor Colaborativo en Tiempo Real
+# 🚀 CodeSpace - Editor Colaborativo en Tiempo Real
 
 <div align="center">
 
-![ShareCode](https://img.shields.io/badge/ShareCode-Collaborative%20Editor-4ec9b0?style=for-the-badge)
+![CodeSpace](https://img.shields.io/badge/CodeSpace-Collaborative%20Editor-4ec9b0?style=for-the-badge)
 ![TypeScript](https://img.shields.io/badge/TypeScript-100%25-3178C6?style=for-the-badge&logo=typescript)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js)
 ![Socket.io](https://img.shields.io/badge/Socket.io-Real--time-010101?style=for-the-badge&logo=socket.io)
@@ -64,7 +64,7 @@ Crea un archivo `.env` en la raíz del proyecto:
 PORT=3000
 
 # Seguridad
-SESSION_SECRET=sharecode-secret-key-production-2025
+SESSION_SECRET=codespace-secret-key-production-2025
 
 # Credenciales de administrador
 ADMIN_EMAIL=admin@admin.com
@@ -72,7 +72,7 @@ ADMIN_PASSWORD=admin123
 
 # Base de datos MongoDB (opcional)
 # Si no se configura, el chat se guardará en archivos JSON
-# MONGO_URI=mongodb://localhost:27017/sharecode
+# MONGO_URI=mongodb://localhost:27017/codespace
 
 # Limpieza automática
 CLEANUP_INTERVAL_DAYS=1
@@ -119,7 +119,7 @@ docker run -d -p 27017:27017 --name mongodb mongo
 3. Obtén tu URI de conexión
 4. Configura en `.env`:
 ```env
-MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/sharecode
+MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/codespace
 ```
 
 ---
@@ -324,7 +324,7 @@ PORT=3000
 SESSION_SECRET=genera-un-secreto-muy-seguro-aqui
 ADMIN_EMAIL=tu-email@ejemplo.com
 ADMIN_PASSWORD=contraseña-segura
-MONGO_URI=mongodb+srv://usuario:pass@cluster.mongodb.net/sharecode
+MONGO_URI=mongodb+srv://usuario:pass@cluster.mongodb.net/codespace
 CLEANUP_INTERVAL_DAYS=1
 WORKSPACE_EXPIRY_DAYS=30
 ```

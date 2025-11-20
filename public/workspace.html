@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShareCode - Workspace</title>
+    <title>CodeSpace - Workspace</title>
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
@@ -915,6 +915,41 @@
         .plan-badge a:hover {
             text-decoration: underline;
         }
+
+        /* Difuminado del fondo cuando hay modal de contraseña */
+        .blurred-background {
+            filter: blur(10px);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .modal.password-modal {
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .lockout-message {
+            background: #3e2723;
+            border: 1px solid #ff5252;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .lockout-timer {
+            font-size: 1.5em;
+            color: #ff5252;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .attempts-remaining {
+            color: #ffab00;
+            font-size: 0.85em;
+            margin-top: 8px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -925,7 +960,7 @@
             <div class="titlebar-button minimize"></div>
             <div class="titlebar-button maximize"></div>
         </div>
-        <div class="titlebar-title">ShareCode - Workspace</div>
+        <div class="titlebar-title">CodeSpace - Workspace</div>
         <div style="width: 70px;"></div> <!-- Spacer para centrar el título -->
     </div>
 
@@ -934,7 +969,7 @@
         <div class="header-left">
             <div class="logo" onclick="window.location.href='/'">
                 <i data-feather="code"></i>
-                <span>ShareCode</span>
+                <span>CodeSpace</span>
             </div>
             <div class="file-name" id="workspaceName">workspace</div>
             <div class="file-name" style="color: #3e3e42">|</div>
@@ -946,13 +981,17 @@
                 <span id="usersCount">0</span> <span id="usersText">usuarios</span>
             </div>
             <div class="header-actions">
-                <button class="btn" onclick="exportWorkspace()" title="Exportar como ZIP">
-                    <i data-feather="download" style="width: 14px; height: 14px;"></i>
-                    Exportar
-                </button>
                 <button class="btn" onclick="showGitHubModal()" title="Conectar con GitHub">
                     <i data-feather="github" style="width: 14px; height: 14px;"></i>
                     GitHub
+                </button>
+                <button class="btn" onclick="exportWorkspace()" title="Descargar como ZIP">
+                    <i data-feather="download" style="width: 14px; height: 14px;"></i>
+                    Descargar
+                </button>
+                <button class="btn" onclick="toggleWorkspacePassword()" id="workspacePasswordBtn" title="Proteger workspace">
+                    <i data-feather="lock" style="width: 14px; height: 14px;"></i>
+                    Contraseña
                 </button>
                 <button class="btn" onclick="showTerminal()" id="terminalBtn" title="Abrir Terminal" style="display: none;">
                     <i data-feather="terminal" style="width: 14px; height: 14px;"></i>
@@ -1091,8 +1130,8 @@
         </div>
     </div>
 
-    <!-- Modal para contraseña -->
-    <div class="modal" id="passwordModal" style="display: flex;">
+    <!-- Modal para contraseña de acceso -->
+    <div class="modal password-modal" id="accessPasswordModal">
         <div class="modal-content">
             <div class="modal-header">
                 <i data-feather="lock" style="width: 20px; height: 20px;"></i>
@@ -1101,9 +1140,19 @@
             <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
                 Este workspace está protegido con contraseña
             </p>
+            <!-- Mensaje de bloqueo -->
+            <div class="lockout-message" id="lockoutMessage" style="display: none;">
+                <div style="color: #ff5252; font-weight: 500;">
+                    <i data-feather="alert-triangle" style="width: 20px; height: 20px;"></i>
+                    Demasiados intentos fallidos
+                </div>
+                <div class="lockout-timer" id="lockoutTimer">00:30</div>
+                <div style="color: #969696; font-size: 0.85em; margin-top: 8px;">Espera antes de intentar nuevamente</div>
+            </div>
             <input type="password" class="modal-input" id="passwordInput" placeholder="Contraseña">
+            <div class="attempts-remaining" id="attemptsRemaining">Intentos restantes: 3</div>
             <div class="modal-actions">
-                <button class="btn" onclick="submitPassword()">Acceder</button>
+                <button class="btn" onclick="submitPassword()" id="submitPasswordBtn">Acceder</button>
             </div>
         </div>
     </div>
@@ -1132,21 +1181,39 @@
         </div>
     </div>
 
-    <!-- Modal para establecer contraseña -->
-    <div class="modal" id="passwordModal">
+    <!-- Modal para establecer contraseña del workspace -->
+    <div class="modal" id="setWorkspacePasswordModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Establecer Contraseña</h3>
-                <button class="modal-close" onclick="closePasswordModal()">×</button>
+                <i data-feather="lock" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                <span>Proteger Workspace</span>
             </div>
-            <div class="modal-body">
-                <p>Esta contraseña protegerá el archivo. Solo se puede establecer una vez.</p>
-                <input type="password" id="newPassword" placeholder="Nueva contraseña" class="modal-input">
-                <input type="password" id="confirmPassword" placeholder="Confirmar contraseña" class="modal-input">
+            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
+                Establece una contraseña para proteger este workspace. Todos los usuarios necesitarán la contraseña para acceder.
+            </p>
+            <input type="password" class="modal-input" id="newWorkspacePassword" placeholder="Nueva contraseña">
+            <input type="password" class="modal-input" id="confirmWorkspacePassword" placeholder="Confirmar contraseña">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeSetWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmSetWorkspacePassword()">Establecer</button>
             </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closePasswordModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="confirmSetPassword()">Establecer</button>
+        </div>
+    </div>
+
+    <!-- Modal para quitar contraseña del workspace -->
+    <div class="modal" id="removeWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-feather="unlock" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                <span>Quitar Protección</span>
+            </div>
+            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
+                Introduce la contraseña actual para quitar la protección de este workspace.
+            </p>
+            <input type="password" class="modal-input" id="currentWorkspacePassword" placeholder="Contraseña actual">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRemoveWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmRemoveWorkspacePassword()">Quitar</button>
             </div>
         </div>
     </div>

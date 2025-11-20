@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import { config } from '../config';
 
+// Deshabilitar buffering de Mongoose para evitar timeouts cuando no hay conexión
+mongoose.set('bufferCommands', false);
+
 export async function connectDatabase(): Promise<void> {
     try {
         if (!config.mongoUri) {

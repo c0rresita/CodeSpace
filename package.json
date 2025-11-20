@@ -1,5 +1,5 @@
 {
-  "name": "sharecode",
+  "name": "codespace",
   "version": "1.0.0",
   "description": "Editor colaborativo de código en tiempo real con terminal Docker integrada y planes de pago",
   "main": "dist/server.js",
@@ -22,16 +22,16 @@
     "collaboration",
     "workspace"
   ],
-  "author": "ShareCode Contributors",
+  "author": "CodeSpace Contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tuusuario/sharecode.git"
+    "url": "https://github.com/c0rresita/CodeSpace.git"
   },
   "bugs": {
-    "url": "https://github.com/tuusuario/sharecode/issues"
+    "url": "https://github.com/c0rresita/CodeSpace/issues"
   },
-  "homepage": "https://github.com/tuusuario/sharecode#readme",
+  "homepage": "https://github.com/c0rresita/CodeSpace#readme",
   "dependencies": {
     "archiver": "^7.0.1",
     "bcrypt": "^5.1.1",

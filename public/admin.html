@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - ShareCode</title>
+    <title>Panel de Administración - CodeSpace</title>
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
@@ -386,6 +386,48 @@
             display: block;
         }
 
+        .log-tab-content {
+            display: none;
+        }
+
+        .log-tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            color: #858585;
+            padding: 20px;
+        }
+
+        .btn-block {
+            background: #d32f2f;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-block:hover {
+            background: #b71c1c;
+        }
+
+        .btn-unblock {
+            background: #388e3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-unblock:hover {
+            background: #2e7d32;
+        }
+
         .discount-code {
             background: #1e1e1e;
             border: 1px solid #3e3e42;
@@ -506,7 +548,12 @@
             <i data-feather="users" style="width: 16px; height: 16px;"></i>
             Usuarios Activos
         </button>
+        <button class="tab" onclick="switchTab('logs')">
+            <i data-feather="activity" style="width: 16px; height: 16px;"></i>
+            Logs & Estadísticas
+        </button>
     </div>
+
 
     <!-- Tab: Workspaces -->
     <div class="tab-content active" id="workspacesTab">
@@ -733,6 +780,112 @@
         </div>
     </div>
     <!-- End Tab: Usuarios Activos -->
+
+    <!-- Tab: Logs & Estadísticas -->
+    <div class="tab-content" id="logsTab">
+        <div class="container">
+            <h2 style="color: #4ec9b0; margin-bottom: 20px;">Logs & Estadísticas</h2>
+            
+            <!-- Subtabs -->
+            <div class="tabs" style="margin-bottom: 20px;">
+                <button class="tab active" onclick="switchLogTab('ipStats')">Top IPs</button>
+                <button class="tab" onclick="switchLogTab('workspaceStats')">Top Workspaces</button>
+                <button class="tab" onclick="switchLogTab('activity')">Actividad Reciente</button>
+                <button class="tab" onclick="switchLogTab('blocked')">IPs Bloqueadas</button>
+            </div>
+
+            <!-- Top IPs -->
+            <div class="log-tab-content active" id="ipStatsContent">
+                <div class="workspaces-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>IP</th>
+                                <th>Total Accesos</th>
+                                <th>Workspaces</th>
+                                <th>Último Acceso</th>
+                                <th>Intentos Bloqueados</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ipStatsBody">
+                            <tr>
+                                <td colspan="6" class="loading">Cargando estadísticas...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top Workspaces -->
+            <div class="log-tab-content" id="workspaceStatsContent" style="display: none;">
+                <div class="workspaces-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Workspace ID</th>
+                                <th>Total Accesos</th>
+                                <th>IPs Únicas</th>
+                                <th>Usuarios Únicos</th>
+                                <th>Último Acceso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workspaceStatsBody">
+                            <tr>
+                                <td colspan="5" class="loading">Cargando estadísticas...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Actividad Reciente -->
+            <div class="log-tab-content" id="activityContent" style="display: none;">
+                <div class="workspaces-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>IP</th>
+                                <th>Workspace</th>
+                                <th>Acción</th>
+                                <th>Bloqueado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityBody">
+                            <tr>
+                                <td colspan="5" class="loading">Cargando actividad...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- IPs Bloqueadas -->
+            <div class="log-tab-content" id="blockedContent" style="display: none;">
+                <div class="workspaces-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>IP</th>
+                                <th>Razón</th>
+                                <th>Bloqueado Por</th>
+                                <th>Fecha Bloqueo</th>
+                                <th>Expira</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blockedBody">
+                            <tr>
+                                <td colspan="6" class="loading">Cargando IPs bloqueadas...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Tab: Logs & Estadísticas -->
 
     <!-- Modal de confirmación -->
     <div class="modal" id="confirmModal">
@@ -1110,6 +1263,8 @@
                 loadUsers();
             } else if (tabName === 'discounts') {
                 loadDiscountCodes();
+            } else if (tabName === 'logs') {
+                loadIPStats(); // Cargar el primer subtab por defecto
             }
             
             feather.replace();
@@ -1360,6 +1515,229 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
+            }
+        }
+
+        // ====================
+        // LOGS & ESTADÍSTICAS
+        // ====================
+        function switchLogTab(tabName) {
+            // Ocultar todos los log-tabs
+            document.querySelectorAll('.log-tab-content').forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.display = 'none';
+            });
+            document.querySelectorAll('#logsTab .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Mostrar tab seleccionado
+            document.getElementById(tabName + 'Content').classList.add('active');
+            document.getElementById(tabName + 'Content').style.display = 'block';
+            event.target.classList.add('active');
+
+            // Cargar datos según el log-tab
+            if (tabName === 'ipStats') {
+                loadIPStats();
+            } else if (tabName === 'workspaceStats') {
+                loadWorkspaceStats();
+            } else if (tabName === 'activity') {
+                loadRecentActivity();
+            } else if (tabName === 'blocked') {
+                loadBlockedIPs();
+            }
+        }
+
+        async function loadIPStats() {
+            try {
+                const response = await fetch('/api/admin/stats/ips');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('ipStatsBody');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No hay datos disponibles</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(stat => `
+                    <tr>
+                        <td>${stat._id}</td>
+                        <td>${stat.totalAccess}</td>
+                        <td>${stat.uniqueWorkspaces}</td>
+                        <td>${new Date(stat.lastAccess).toLocaleString('es-ES')}</td>
+                        <td>${stat.blockedAttempts || 0}</td>
+                        <td>
+                            <button class="btn-block" onclick="blockIPPrompt('${stat._id}')">
+                                <i data-feather="shield-off"></i> Bloquear
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                feather.replace();
+            } catch (error) {
+                console.error('Error cargando estadísticas de IPs:', error);
+                document.getElementById('ipStatsBody').innerHTML = 
+                    '<tr><td colspan="6" class="loading">Error al cargar datos</td></tr>';
+            }
+        }
+
+        async function loadWorkspaceStats() {
+            try {
+                const response = await fetch('/api/admin/stats/workspaces');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('workspaceStatsBody');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No hay datos disponibles</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(stat => `
+                    <tr>
+                        <td>${stat._id}</td>
+                        <td>${stat.totalAccess}</td>
+                        <td>${stat.uniqueIPs}</td>
+                        <td>${stat.uniqueUsers}</td>
+                        <td>${new Date(stat.lastAccess).toLocaleString('es-ES')}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error cargando estadísticas de workspaces:', error);
+                document.getElementById('workspaceStatsBody').innerHTML = 
+                    '<tr><td colspan="5" class="loading">Error al cargar datos</td></tr>';
+            }
+        }
+
+        async function loadRecentActivity() {
+            try {
+                const response = await fetch('/api/admin/activity/recent?limit=50');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('activityBody');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No hay actividad reciente</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(activity => `
+                    <tr>
+                        <td>${new Date(activity.timestamp).toLocaleString('es-ES')}</td>
+                        <td>${activity.ip}</td>
+                        <td>${activity.workspaceId || 'N/A'}</td>
+                        <td>${activity.action}</td>
+                        <td>${activity.blocked ? '<span style="color: #d32f2f;">Sí</span>' : 'No'}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error cargando actividad reciente:', error);
+                document.getElementById('activityBody').innerHTML = 
+                    '<tr><td colspan="5" class="loading">Error al cargar datos</td></tr>';
+            }
+        }
+
+        async function loadBlockedIPs() {
+            try {
+                const response = await fetch('/api/admin/blocked-ips');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('blockedBody');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No hay IPs bloqueadas</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(blocked => {
+                    const expiresText = blocked.permanent ? 'Permanente' : 
+                        (blocked.expiresAt ? new Date(blocked.expiresAt).toLocaleString('es-ES') : 'N/A');
+                    
+                    return `
+                        <tr>
+                            <td>${blocked.ip}</td>
+                            <td>${blocked.reason}</td>
+                            <td>${blocked.blockedBy || 'Sistema'}</td>
+                            <td>${new Date(blocked.createdAt).toLocaleString('es-ES')}</td>
+                            <td>${expiresText}</td>
+                            <td>
+                                <button class="btn-unblock" onclick="unblockIP('${blocked.ip}')">
+                                    <i data-feather="shield"></i> Desbloquear
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                feather.replace();
+            } catch (error) {
+                console.error('Error cargando IPs bloqueadas:', error);
+                document.getElementById('blockedBody').innerHTML = 
+                    '<tr><td colspan="6" class="loading">Error al cargar datos</td></tr>';
+            }
+        }
+
+        function blockIPPrompt(ip) {
+            const reason = prompt(`¿Por qué deseas bloquear la IP ${ip}?`, 'Actividad sospechosa');
+            if (!reason) return;
+
+            const permanent = confirm('¿Bloqueo permanente? (Cancelar = temporal 24h)');
+            
+            blockIP(ip, reason, permanent);
+        }
+
+        async function blockIP(ip, reason, permanent = false) {
+            try {
+                const response = await fetch('/api/admin/block-ip', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ip,
+                        reason,
+                        permanent,
+                        duration: permanent ? null : 24 * 60 * 60 * 1000 // 24 horas
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`IP ${ip} bloqueada exitosamente`);
+                    loadBlockedIPs();
+                    loadIPStats();
+                } else {
+                    alert(data.error || 'Error al bloquear IP');
+                }
+            } catch (error) {
+                console.error('Error bloqueando IP:', error);
+                alert('Error al bloquear IP');
+            }
+        }
+
+        async function unblockIP(ip) {
+            if (!confirm(`¿Desbloquear la IP ${ip}?`)) return;
+
+            try {
+                const response = await fetch('/api/admin/unblock-ip', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ip })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`IP ${ip} desbloqueada exitosamente`);
+                    loadBlockedIPs();
+                    loadIPStats();
+                } else {
+                    alert(data.error || 'Error al desbloquear IP');
+                }
+            } catch (error) {
+                console.error('Error desbloqueando IP:', error);
+                alert('Error al desbloquear IP');
             }
         }
 

@@ -21,7 +21,7 @@ app.use(express.json());
 
 // Configuración de sesión
 const sessionMiddleware = session({
-    name: 'sharecode.sid',
+    name: 'codespace.sid',
     secret: config.sessionSecret,
     resave: false,
     saveUninitialized: true,
@@ -80,11 +80,10 @@ async function startServer() {
     setInterval(cleanupExpiredWorkspaces, config.cleanupInterval);
     
     server.listen(config.port, () => {
-        console.log(`Servidor ejecutándose en http://localhost:${config.port}`);
-        console.log(`Directorio de datos: ${path.join(process.cwd(), config.dataDir)}`);
-        console.log(`Workspaces se eliminan después de ${config.workspaceExpiryDays} días de inactividad`);
-        console.log(`Modo: Usuarios anónimos únicamente`);
-        console.log(`Panel de administración: /accesoadministracion`);
+        console.log(`\n🚀 CodeSpace Server`);
+        console.log(`📍 http://localhost:${config.port}`);
+        console.log(`🔐 Admin: /accesoadministracion usr: admin@admin.com pass:admin123`);
+        console.log(`⏳ Expiración: ${config.workspaceExpiryDays} días\n`);
     });
 }
 

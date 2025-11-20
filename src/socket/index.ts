@@ -2,6 +2,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import bcrypt from 'bcrypt';
 import { workspaces, saveWorkspace, getFileByPath, initWorkspace } from '../services/workspace.service';
 import { chatService } from '../services/chat.service';
+import * as logService from '../services/log.service';
 
 export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any): void {
     // Usar sesión en WebSocket
@@ -10,23 +11,60 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
     });
 
     io.on('connection', (socket: Socket) => {
-        console.log('Usuario conectado:', socket.id);
         let currentWorkspace: string | null = null;
         
         // Obtener ID de sesión único del usuario
         const sessionId = (socket.request as any).session.id;
+        const userIP = socket.handshake.headers['x-forwarded-for'] as string || socket.handshake.address;
+        const userAgent = socket.handshake.headers['user-agent'];
 
         // Unirse a un workspace
         socket.on('join-workspace', async ({ workspaceId, password }) => {
             currentWorkspace = workspaceId;
             
+            // Verificar si la IP está bloqueada
+            const isBlocked = await logService.isIPBlocked(userIP);
+            if (isBlocked) {
+                socket.emit('workspace-error', { error: 'blocked' });
+                await logService.logAccess({
+                    ip: userIP,
+                    workspaceId,
+                    userId: socket.id,
+                    sessionId,
+                    action: 'join',
+                    userAgent
+                });
+                return;
+            }
+            
             const workspace = await initWorkspace(workspaceId, password);
             
             // Verificar si hay error de contraseña
             if ('error' in workspace) {
+                // Registrar intento fallido de contraseña
+                if (workspace.error === 'invalid_password') {
+                    await logService.logAccess({
+                        ip: userIP,
+                        workspaceId,
+                        userId: socket.id,
+                        sessionId,
+                        action: 'password_attempt',
+                        userAgent
+                    });
+                }
                 socket.emit('workspace-error', { error: workspace.error });
                 return;
             }
+            
+            // Registrar acceso exitoso
+            await logService.logAccess({
+                ip: userIP,
+                workspaceId,
+                userId: socket.id,
+                sessionId,
+                action: 'join',
+                userAgent
+            });
             
             socket.join(workspaceId);
             
@@ -60,9 +98,9 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 socket.to(workspaceId).emit('user-connected', { userId: socket.id });
             }
             io.to(workspaceId).emit('users-count', workspace.users);
-
-            console.log(`Usuario ${socket.id} (sesión: ${sessionId}) unido a workspace: ${workspaceId}`);
-            console.log(`Usuarios únicos en ${workspaceId}: ${workspace.users}`);
+            
+            // Enviar información sobre si el workspace tiene contraseña
+            socket.emit('workspace-info', { hasPassword: !!workspace.password });
         });
 
         // Establecer nombre de usuario
@@ -174,7 +212,6 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 io.to(workspaceId).emit('structure-updated', workspace.structure);
                 
                 socket.emit('file-password-set', { path, success: true });
-                console.log(`Contraseña establecida en archivo: ${path}`);
             }
         });
 
@@ -211,7 +248,6 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 io.to(workspaceId).emit('structure-updated', workspace.structure);
                 
                 socket.emit('file-password-removed', { path, success: true });
-                console.log(`Contraseña eliminada del archivo: ${path}`);
             }
         });
 
@@ -249,6 +285,70 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             }
         });
 
+        // Establecer contraseña del workspace
+        socket.on('set-workspace-password', async ({ workspaceId, password }) => {
+            const workspace = workspaces.get(workspaceId);
+            if (!workspace) {
+                socket.emit('workspace-password-error', { message: 'Workspace no encontrado' });
+                return;
+            }
+
+            if (workspace.password) {
+                socket.emit('workspace-password-error', { message: 'El workspace ya tiene contraseña. Quítala primero.' });
+                return;
+            }
+
+            if (!password || password.length < 4) {
+                socket.emit('workspace-password-error', { message: 'La contraseña debe tener al menos 4 caracteres' });
+                return;
+            }
+
+            try {
+                const hashedPassword = await bcrypt.hash(password, 10);
+                workspace.password = hashedPassword;
+                await saveWorkspace(workspaceId, workspace);
+                
+                socket.emit('workspace-password-set');
+                io.to(workspaceId).emit('workspace-info', { hasPassword: true });
+                
+                console.log(`🔒 Contraseña establecida: ${workspaceId}`);
+            } catch (error) {
+                socket.emit('workspace-password-error', { message: 'Error al establecer contraseña' });
+            }
+        });
+
+        // Quitar contraseña del workspace
+        socket.on('remove-workspace-password', async ({ workspaceId, password }) => {
+            const workspace = workspaces.get(workspaceId);
+            if (!workspace) {
+                socket.emit('workspace-password-error', { message: 'Workspace no encontrado' });
+                return;
+            }
+
+            if (!workspace.password) {
+                socket.emit('workspace-password-error', { message: 'El workspace no tiene contraseña' });
+                return;
+            }
+
+            try {
+                const match = await bcrypt.compare(password, workspace.password);
+                if (!match) {
+                    socket.emit('workspace-password-error', { message: 'Contraseña incorrecta' });
+                    return;
+                }
+
+                delete workspace.password;
+                await saveWorkspace(workspaceId, workspace);
+                
+                socket.emit('workspace-password-removed');
+                io.to(workspaceId).emit('workspace-info', { hasPassword: false });
+                
+                console.log(`🔓 Contraseña eliminada: ${workspaceId}`);
+            } catch (error) {
+                socket.emit('workspace-password-error', { message: 'Error al quitar contraseña' });
+            }
+        });
+
         // Crear archivo
         socket.on('create-file', async ({ workspaceId, name, parentPath }) => {
             const workspace = workspaces.get(workspaceId);
@@ -260,7 +360,16 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 parent[name] = { type: 'file', content: '' };
                 io.to(workspaceId).emit('structure-updated', workspace.structure);
                 await saveWorkspace(workspaceId, workspace);
-                console.log(`Archivo creado: ${name} en workspace ${workspaceId}`);
+                
+                // Log de creación de archivo
+                await logService.logAccess({
+                    ip: userIP,
+                    workspaceId,
+                    userId: socket.id,
+                    sessionId,
+                    action: 'create_file',
+                    userAgent
+                });
             }
         });
 
@@ -275,7 +384,6 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 parent[name] = { type: 'folder', children: {} };
                 io.to(workspaceId).emit('structure-updated', workspace.structure);
                 await saveWorkspace(workspaceId, workspace);
-                console.log(`Carpeta creada: ${name} en workspace ${workspaceId}`);
             }
         });
 
@@ -290,12 +398,21 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             
             const parent = parentPath ? getFileByPath(workspace.structure, parentPath) : workspace.structure;
             
+            // Log de eliminación
+            await logService.logAccess({
+                ip: userIP,
+                workspaceId,
+                userId: socket.id,
+                sessionId,
+                action: 'delete_file',
+                userAgent
+            });
+            
             if (parent && parent[itemName]) {
                 delete parent[itemName];
                 io.to(workspaceId).emit('structure-updated', workspace.structure);
                 io.to(workspaceId).emit('item-deleted', { path });
                 await saveWorkspace(workspaceId, workspace);
-                console.log(`Elemento eliminado: ${path} en workspace ${workspaceId}`);
             }
         });
 
@@ -314,7 +431,6 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 delete parent[oldName];
                 io.to(workspaceId).emit('structure-updated', workspace.structure);
                 await saveWorkspace(workspaceId, workspace);
-                console.log(`Item renombrado: ${oldName} -> ${newName} en workspace ${workspaceId}`);
             }
         });
 
@@ -337,7 +453,17 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
 
         // Desconexión
         socket.on('disconnect', async () => {
-            console.log('Usuario desconectado:', socket.id);
+            // Registrar desconexión
+            if (currentWorkspace) {
+                await logService.logAccess({
+                    ip: userIP,
+                    workspaceId: currentWorkspace,
+                    userId: socket.id,
+                    sessionId,
+                    action: 'disconnect',
+                    userAgent
+                });
+            }
             
             if (currentWorkspace && workspaces.has(currentWorkspace)) {
                 const workspace = workspaces.get(currentWorkspace)!;
@@ -351,9 +477,6 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                         workspace.users = workspace.uniqueUsers.size;
                         
                         io.to(currentWorkspace).emit('users-count', workspace.users);
-                        
-                        console.log(`Usuario con sesión ${sessionId} completamente desconectado de ${currentWorkspace}`);
-                        console.log(`Usuarios únicos restantes: ${workspace.users}`);
                     }
                 }
                 

@@ -33,6 +33,31 @@ let unreadMessages = 0;
 let onlineUsers = new Map();
 let workspacePassword = null;
 
+// Sistema de intentos de contraseña
+let passwordAttempts = 0;
+let maxAttempts = 3;
+let lockoutEndTime = null;
+let lockoutDuration = 30; // Empieza con 30 segundos
+let lockoutTimer = null;
+
+// Restaurar estado de lockout desde localStorage
+const savedLockout = localStorage.getItem(`lockout_${workspaceId}`);
+if (savedLockout) {
+    const lockoutData = JSON.parse(savedLockout);
+    const now = Date.now();
+    
+    if (lockoutData.endTime > now) {
+        // Aún está bloqueado
+        lockoutEndTime = lockoutData.endTime;
+        lockoutDuration = lockoutData.duration;
+        passwordAttempts = maxAttempts; // Forzar que muestre el lockout
+    } else {
+        // El lockout expiró, limpiar
+        localStorage.removeItem(`lockout_${workspaceId}`);
+        lockoutDuration = lockoutData.duration || 30; // Mantener la duración acumulada
+    }
+}
+
 // Sidebar resize
 let isResizing = false;
 let sidebarWidth = 250;
@@ -45,11 +70,9 @@ document.getElementById('usernameInput').value = username;
 const savedPassword = sessionStorage.getItem(`ws_pass_${workspaceId}`);
 if (savedPassword) {
     workspacePassword = savedPassword;
-    joinWorkspace();
-} else {
-    // Intentar unirse sin contraseña
-    joinWorkspace();
 }
+// Siempre intentar unirse (con o sin contraseña)
+joinWorkspace();
 
 function joinWorkspace() {
     socket.emit('join-workspace', { workspaceId, password: workspacePassword });
@@ -57,21 +80,157 @@ function joinWorkspace() {
 
 // Manejar error de workspace (contraseña requerida/incorrecta)
 socket.on('workspace-error', (data) => {
+    if (data.error === 'blocked') {
+        showToast('Tu IP ha sido bloqueada. Contacta al administrador.');
+        // Deshabilitar todo
+        const mainContent = document.querySelector('.main-container');
+        const header = document.querySelector('.header');
+        if (mainContent) mainContent.style.display = 'none';
+        if (header) header.style.display = 'none';
+        return;
+    }
+    
     if (data.error === 'password_required') {
         showPasswordModal();
     } else if (data.error === 'invalid_password') {
-        showToast('Contraseña incorrecta');
-        workspacePassword = null;
-        sessionStorage.removeItem(`ws_pass_${workspaceId}`);
-        showPasswordModal();
+        handleFailedPasswordAttempt();
     }
 });
 
-function showPasswordModal() {
-    const passwordModal = document.getElementById('passwordModal');
+function handleFailedPasswordAttempt() {
+    passwordAttempts++;
+    workspacePassword = null;
+    sessionStorage.removeItem(`ws_pass_${workspaceId}`);
+    
+    // Limpiar el input de contraseña
     const passwordInput = document.getElementById('passwordInput');
+    if (passwordInput) passwordInput.value = '';
+    
+    const remainingAttempts = maxAttempts - passwordAttempts;
+    
+    if (remainingAttempts > 0) {
+        showToast(`Contraseña incorrecta. ${remainingAttempts} intentos restantes.`);
+        updateAttemptsDisplay();
+    } else {
+        // Bloquear temporalmente
+        startLockout();
+    }
+}
+
+function startLockout() {
+    const now = Date.now();
+    lockoutEndTime = now + (lockoutDuration * 1000);
+    
+    // Guardar estado de lockout en localStorage
+    localStorage.setItem(`lockout_${workspaceId}`, JSON.stringify({
+        endTime: lockoutEndTime,
+        duration: lockoutDuration
+    }));
+    
+    // Deshabilitar input y botón
+    const passwordInput = document.getElementById('passwordInput');
+    const submitBtn = document.getElementById('submitPasswordBtn');
+    const lockoutMessage = document.getElementById('lockoutMessage');
+    const attemptsDisplay = document.getElementById('attemptsRemaining');
+    
+    passwordInput.disabled = true;
+    submitBtn.disabled = true;
+    lockoutMessage.style.display = 'block';
+    attemptsDisplay.style.display = 'none';
+    
+    // Iniciar contador regresivo
+    updateLockoutTimer();
+    lockoutTimer = setInterval(updateLockoutTimer, 1000);
+    
+    showToast('Demasiados intentos fallidos. Espera antes de intentar nuevamente.');
+}
+
+function updateLockoutTimer() {
+    const now = Date.now();
+    const remaining = Math.max(0, Math.ceil((lockoutEndTime - now) / 1000));
+    
+    if (remaining === 0) {
+        endLockout();
+        return;
+    }
+    
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    const timerDisplay = document.getElementById('lockoutTimer');
+    timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function endLockout() {
+    if (lockoutTimer) {
+        clearInterval(lockoutTimer);
+        lockoutTimer = null;
+    }
+    
+    // Limpiar localStorage
+    localStorage.removeItem(`lockout_${workspaceId}`);
+    
+    // Habilitar input y botón
+    const passwordInput = document.getElementById('passwordInput');
+    const submitBtn = document.getElementById('submitPasswordBtn');
+    const lockoutMessage = document.getElementById('lockoutMessage');
+    const attemptsDisplay = document.getElementById('attemptsRemaining');
+    
+    passwordInput.disabled = false;
+    submitBtn.disabled = false;
+    lockoutMessage.style.display = 'none';
+    attemptsDisplay.style.display = 'block';
+    
+    // Duplicar el tiempo de bloqueo para el próximo fallo
+    lockoutDuration *= 2;
+    
+    // Resetear intentos
+    passwordAttempts = 0;
+    updateAttemptsDisplay();
+    
+    showToast('Puedes intentar nuevamente.', true);
+}
+
+function updateAttemptsDisplay() {
+    const attemptsDisplay = document.getElementById('attemptsRemaining');
+    const remainingAttempts = maxAttempts - passwordAttempts;
+    
+    if (attemptsDisplay) {
+        attemptsDisplay.textContent = `Intentos restantes: ${remainingAttempts}`;
+        
+        // Cambiar color según intentos restantes
+        if (remainingAttempts === 1) {
+            attemptsDisplay.style.color = '#ff5252';
+        } else if (remainingAttempts === 2) {
+            attemptsDisplay.style.color = '#ffab00';
+        } else {
+            attemptsDisplay.style.color = '#4ec9b0';
+        }
+    }
+}
+
+function showPasswordModal() {
+    const passwordModal = document.getElementById('accessPasswordModal');
+    const passwordInput = document.getElementById('passwordInput');
+    
+    // Difuminar el fondo
+    const mainContent = document.querySelector('.main-container');
+    const header = document.querySelector('.header');
+    if (mainContent) mainContent.classList.add('blurred-background');
+    if (header) header.classList.add('blurred-background');
+    
     passwordModal.style.display = 'flex';
-    setTimeout(() => passwordInput.focus(), 100);
+    updateAttemptsDisplay();
+    
+    // Verificar si hay lockout activo al abrir el modal
+    if (lockoutEndTime && lockoutEndTime > Date.now()) {
+        startLockout(); // Reactivar el lockout visual
+    }
+    
+    setTimeout(() => {
+        if (!passwordInput.disabled) {
+            passwordInput.focus();
+        }
+    }, 100);
 }
 
 function submitPassword() {
@@ -86,11 +245,9 @@ function submitPassword() {
     // Guardar en sessionStorage
     sessionStorage.setItem(`ws_pass_${workspaceId}`, workspacePassword);
     
-    // Ocultar modal
-    document.getElementById('passwordModal').style.display = 'none';
-    
-    // Intentar unirse al workspace
-    joinWorkspace();
+    // NO cerrar el modal aún, esperar respuesta del servidor
+    // joinWorkspace();
+    socket.emit('join-workspace', { workspaceId, password: workspacePassword });
 }
 
 // Enter para enviar contraseña
@@ -133,7 +290,7 @@ function updatePlanUI() {
 
 function showTerminal() {
     if (!userFeatures.terminal) {
-        alert('Terminal disponible solo en planes Pro y Enterprise');
+        showToast('Terminal disponible solo en planes Pro y Enterprise');
         window.open('/plans', '_blank');
         return;
     }
@@ -558,6 +715,27 @@ socket.on('load-structure', (structure) => {
     fileStructure = structure;
     renderFileTree();
     
+    // Cerrar modal de contraseña si está abierto
+    const passwordModal = document.getElementById('accessPasswordModal');
+    if (passwordModal && passwordModal.style.display === 'flex') {
+        passwordModal.style.display = 'none';
+        
+        // Limpiar input
+        const passwordInput = document.getElementById('passwordInput');
+        if (passwordInput) passwordInput.value = '';
+    }
+    
+    // Resetear intentos de contraseña al cargar exitosamente
+    passwordAttempts = 0;
+    lockoutDuration = 30; // Resetear a 30 segundos
+    updateAttemptsDisplay();
+    
+    // Quitar difuminado si está activo
+    const mainContent = document.querySelector('.main-container');
+    const header = document.querySelector('.header');
+    if (mainContent) mainContent.classList.remove('blurred-background');
+    if (header) header.classList.remove('blurred-background');
+    
     // Inicializar CodeMirror si aún no está inicializado
     if (!codeMirrorEditor) {
         initCodeMirror();
@@ -699,22 +877,22 @@ socket.on('username-changed', (data) => {
 // Respuesta al establecer contraseña en archivo
 socket.on('file-password-set', ({ path, success, error }) => {
     if (success) {
-        alert('Contraseña establecida correctamente');
+        showToast('Contraseña establecida correctamente', true);
         // Actualizar estructura para reflejar que el archivo tiene contraseña
         socket.emit('get-structure', { workspaceId });
     } else {
-        alert(error || 'Error al establecer contraseña');
+        showToast(error || 'Error al establecer contraseña');
     }
 });
 
 // Respuesta al quitar contraseña de archivo
 socket.on('file-password-removed', ({ path, success, error }) => {
     if (success) {
-        alert('Contraseña eliminada correctamente');
+        showToast('Contraseña eliminada correctamente', true);
         // Actualizar estructura para reflejar que el archivo ya no tiene contraseña
         socket.emit('get-structure', { workspaceId });
     } else {
-        alert(error || 'Contraseña incorrecta');
+        showToast(error || 'Contraseña incorrecta');
     }
 });
 
@@ -738,7 +916,7 @@ socket.on('file-unlocked', ({ path, content, success, error }) => {
         updateCurrentFileName();
         addTab(path);
     } else {
-        alert(error || 'Contraseña incorrecta');
+        showToast(error || 'Contraseña incorrecta');
     }
 });
 
@@ -1016,14 +1194,30 @@ function shareLink() {
 
 // Exportar workspace como ZIP
 function exportWorkspace() {
-    const url = `/api/export/${workspaceId}`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${workspaceId}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast('Exportando workspace...', true);
+    showToast('Preparando descarga...', true);
+    
+    fetch(`/api/workspace/export/${workspaceId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al exportar');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${workspaceId}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showToast('¡Workspace descargado!', true);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al descargar el workspace');
+        });
 }
 
 // Mostrar modal de GitHub
@@ -1173,14 +1367,14 @@ cd ${repo}</code></pre>
     <div class="step">
         <p><strong>Paso 3:</strong> Haz commit y push</p>
         <pre><code>git add .
-git commit -m "Export from ShareCode workspace: ${workspaceId}"
+git commit -m "Export from CodeSpace workspace: ${workspaceId}"
 git push origin main</code></pre>
-        <button onclick="navigator.clipboard.writeText('git add .\\ngit commit -m \\"Export from ShareCode workspace: ${workspaceId}\\"\\ngit push origin main')">Copiar</button>
+        <button onclick="navigator.clipboard.writeText('git add .\\ngit commit -m \\"Export from CodeSpace workspace: ${workspaceId}\\"\\ngit push origin main')">Copiar</button>
     </div>
     
     <h2>Opción 2: Descargar ZIP y subir manualmente</h2>
     <div class="step">
-        <p>1. Descarga el workspace como ZIP desde ShareCode</p>
+        <p>1. Descarga el workspace como ZIP desde CodeSpace</p>
         <p>2. Extrae los archivos</p>
         <p>3. Sube los archivos a tu repositorio de GitHub manualmente</p>
     </div>
@@ -1375,17 +1569,17 @@ function confirmSetPassword() {
     const confirm = document.getElementById('filePasswordConfirm').value;
     
     if (!password || !confirm) {
-        alert('Por favor, completa ambos campos');
+        showToast('Por favor, completa ambos campos');
         return;
     }
     
     if (password !== confirm) {
-        alert('Las contraseñas no coinciden');
+        showToast('Las contraseñas no coinciden');
         return;
     }
     
     if (password.length < 4) {
-        alert('La contraseña debe tener al menos 4 caracteres');
+        showToast('La contraseña debe tener al menos 4 caracteres');
         return;
     }
     
@@ -1410,7 +1604,7 @@ function confirmRemovePassword() {
     const password = document.getElementById('currentPassword').value;
     
     if (!password) {
-        alert('Por favor, ingresa la contraseña actual');
+        showToast('Por favor, ingresa la contraseña actual');
         return;
     }
     
@@ -1434,7 +1628,7 @@ function confirmUnlock() {
     const password = document.getElementById('unlockPassword').value;
     
     if (!password) {
-        alert('Por favor, ingresa la contraseña');
+        showToast('Por favor, ingresa la contraseña');
         return;
     }
     
@@ -1449,3 +1643,124 @@ function confirmUnlock() {
     
     closeUnlockModal();
 }
+
+// Variable para rastrear si el workspace tiene contraseña
+let workspaceHasPassword = false;
+
+// Funciones para proteger el workspace
+function toggleWorkspacePassword() {
+    if (workspaceHasPassword) {
+        // Mostrar modal para quitar contraseña
+        document.getElementById('removeWorkspacePasswordModal').style.display = 'flex';
+    } else {
+        // Mostrar modal para establecer contraseña
+        document.getElementById('setWorkspacePasswordModal').style.display = 'flex';
+    }
+}
+
+function closeSetWorkspacePasswordModal() {
+    document.getElementById('setWorkspacePasswordModal').style.display = 'none';
+    document.getElementById('newWorkspacePassword').value = '';
+    document.getElementById('confirmWorkspacePassword').value = '';
+}
+
+function confirmSetWorkspacePassword() {
+    const newPassword = document.getElementById('newWorkspacePassword').value.trim();
+    const confirmPassword = document.getElementById('confirmWorkspacePassword').value.trim();
+    
+    if (!newPassword || !confirmPassword) {
+        showToast('Por favor, completa ambos campos');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showToast('Las contraseñas no coinciden');
+        return;
+    }
+    
+    if (newPassword.length < 4) {
+        showToast('La contraseña debe tener al menos 4 caracteres');
+        return;
+    }
+    
+    // Cerrar modal solo cuando todo es válido
+    closeSetWorkspacePasswordModal();
+    
+    // Limpiar contraseña guardada para forzar que la pida en la próxima recarga
+    sessionStorage.removeItem(`ws_pass_${workspaceId}`);
+    
+    // Enviar al servidor
+    socket.emit('set-workspace-password', {
+        workspaceId,
+        password: newPassword
+    });
+}
+
+function closeRemoveWorkspacePasswordModal() {
+    document.getElementById('removeWorkspacePasswordModal').style.display = 'none';
+    document.getElementById('currentWorkspacePassword').value = '';
+}
+
+function confirmRemoveWorkspacePassword() {
+    const currentPassword = document.getElementById('currentWorkspacePassword').value.trim();
+    
+    if (!currentPassword) {
+        showToast('Por favor, introduce la contraseña actual');
+        return;
+    }
+    
+    // Enviar al servidor
+    socket.emit('remove-workspace-password', {
+        workspaceId,
+        password: currentPassword
+    });
+    
+    closeRemoveWorkspacePasswordModal();
+}
+
+// Escuchar respuestas del servidor sobre la contraseña del workspace
+socket.on('workspace-password-set', () => {
+    workspaceHasPassword = true;
+    updatePasswordButton();
+    // Limpiar la contraseña en memoria para forzar re-autenticación
+    workspacePassword = null;
+    // Borrar del sessionStorage
+    sessionStorage.removeItem(`ws_pass_${workspaceId}`);
+    showToast('¡Contraseña establecida! Al recargar la página se te pedirá la contraseña.', true);
+});
+
+socket.on('workspace-password-removed', () => {
+    workspaceHasPassword = false;
+    updatePasswordButton();
+    sessionStorage.removeItem(`ws_pass_${workspaceId}`);
+    showToast('Contraseña eliminada. El workspace ya no está protegido.', true);
+});
+
+socket.on('workspace-password-error', (data) => {
+    showToast(data.message || 'Error al gestionar la contraseña');
+});
+
+// Actualizar el botón de contraseña según el estado
+function updatePasswordButton() {
+    const btn = document.getElementById('workspacePasswordBtn');
+    if (!btn) return;
+    
+    if (workspaceHasPassword) {
+        btn.innerHTML = '<i data-feather="unlock" style="width: 14px; height: 14px;"></i> Quitar Contraseña';
+        btn.title = 'Quitar protección del workspace';
+    } else {
+        btn.innerHTML = '<i data-feather="lock" style="width: 14px; height: 14px;"></i> Contraseña';
+        btn.title = 'Proteger workspace';
+    }
+    
+    // Re-inicializar los iconos de Feather
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Verificar si el workspace tiene contraseña al cargar
+socket.on('workspace-info', (data) => {
+    workspaceHasPassword = data.hasPassword || false;
+    updatePasswordButton();
+});

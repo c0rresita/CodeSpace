@@ -26,7 +26,7 @@ router.post('/logout', (req: Request, res: Response) => {
         if (err) {
             return res.status(500).json({ error: 'Error al cerrar sesión' });
         }
-        res.clearCookie('sharecode.sid');
+        res.clearCookie('codespace.sid');
         res.json({ success: true });
     });
 });
