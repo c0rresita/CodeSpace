@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "Editor colaborativo de código en tiempo real con terminal Docker integrada y planes de pago",
   "main": "dist/server.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
     "build": "tsc",
+    "vercel-build": "tsc",
     "watch": "tsc --watch",
     "clean": "rmdir /s /q dist 2>nul || exit 0"
   },
@@ -36,26 +40,19 @@
     "archiver": "^7.0.1",
     "bcrypt": "^5.1.1",
     "connect-mongo": "^5.1.0",
-    "dockerode": "^4.0.9",
     "dotenv": "^17.2.3",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "mongoose": "^8.20.0",
-    "passport": "^0.7.0",
-    "passport-github2": "^0.1.12",
-    "passport-google-oauth20": "^2.0.0",
-    "socket.io": "^4.6.1"
+    "socket.io": "^4.6.1",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.4",
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^4.17.25",
     "@types/express-session": "^1.18.2",
-    "@types/mongoose": "^5.11.96",
     "@types/node": "^20.19.25",
-    "@types/passport": "^1.0.16",
-    "nodemon": "^3.1.11",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "ts-node": "^10.9.2"
   }
 }
