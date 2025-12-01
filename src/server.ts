@@ -79,12 +79,15 @@ async function startServer() {
     // Limpieza periódica
     setInterval(cleanupExpiredWorkspaces, config.cleanupInterval);
     
-    server.listen(config.port, () => {
-        console.log(`\n🚀 CodeSpace Server`);
-        console.log(`📍 http://localhost:${config.port}`);
-        console.log(`🔐 Admin: /accesoadministracion usr: admin@admin.com pass:admin123`);
-        console.log(`⏳ Expiración: ${config.workspaceExpiryDays} días\n`);
-    });
+    // Solo iniciar el servidor si no estamos en Vercel
+    if (process.env.VERCEL !== '1') {
+        server.listen(config.port, () => {
+            console.log(`\n🚀 CodeSpace Server`);
+            console.log(`📍 http://localhost:${config.port}`);
+            console.log(`🔐 Admin: /accesoadministracion usr: admin@admin.com pass:admin123`);
+            console.log(`⏳ Expiración: ${config.workspaceExpiryDays} días\n`);
+        });
+    }
 }
 
 startServer();
