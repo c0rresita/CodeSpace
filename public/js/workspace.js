@@ -14,6 +14,114 @@ const toast = document.getElementById('toast');
 const contextMenu = document.getElementById('contextMenu');
 const githubModal = document.getElementById('githubModal');
 
+// ===== FUNCIONES DE LA BARRA DE TÍTULO =====
+
+// Actualizar reloj y fecha
+function updateClock() {
+    const now = new Date();
+    
+    // Actualizar hora (HH:MM:SS)
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const clockEl = document.getElementById('titlebarClock');
+    if (clockEl) clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+    
+    // Actualizar fecha (DD/MM/YYYY)
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const dateEl = document.getElementById('titlebarDate');
+    if (dateEl) {
+        dateEl.textContent = `${day}/${month}/${year}`;
+        console.log('Fecha actualizada:', `${day}/${month}/${year}`);
+    }
+}
+
+// Iniciar reloj
+setInterval(updateClock, 1000);
+updateClock(); // Llamar inmediatamente
+
+// Botón rojo: ir a home
+function goToHome() {
+    if (confirm('¿Quieres salir del workspace y volver a la página principal?')) {
+        window.location.href = '/';
+    }
+}
+
+// Botón amarillo: pantalla completa
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            showToast('No se pudo activar pantalla completa');
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// Botón verde: minimizar (simular)
+function minimizeWindow() {
+    showToast('Función de minimizar no disponible en navegador');
+}
+
+// Toggle tema claro/oscuro
+function toggleTheme() {
+    const body = document.body;
+    const themeText = document.getElementById('themeText');
+    const themeIcon = document.querySelector('.theme-toggle i');
+    
+    const isDark = body.classList.contains('dark-theme') || !body.classList.contains('light-theme');
+    
+    if (isDark) {
+        // Cambiar a tema claro
+        body.classList.remove('dark-theme');
+        body.classList.add('light-theme');
+        themeText.textContent = 'Oscuro';
+        themeIcon.setAttribute('data-feather', 'moon');
+        localStorage.setItem('theme', 'light');
+    } else {
+        // Cambiar a tema oscuro
+        body.classList.remove('light-theme');
+        body.classList.add('dark-theme');
+        themeText.textContent = 'Claro';
+        themeIcon.setAttribute('data-feather', 'sun');
+        localStorage.setItem('theme', 'dark');
+    }
+    
+    // Re-renderizar iconos
+    feather.replace();
+}
+
+// Cargar tema guardado
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const body = document.body;
+    const themeText = document.getElementById('themeText');
+    const themeIcon = document.querySelector('.theme-toggle i');
+    
+    if (savedTheme === 'light') {
+        body.classList.add('light-theme');
+        body.classList.remove('dark-theme');
+        themeText.textContent = 'Oscuro';
+        themeIcon.setAttribute('data-feather', 'moon');
+    } else {
+        body.classList.add('dark-theme');
+        body.classList.remove('light-theme');
+        themeText.textContent = 'Claro';
+        themeIcon.setAttribute('data-feather', 'sun');
+    }
+    
+    feather.replace();
+}
+
+// Cargar tema al iniciar
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedTheme();
+});
+
+// ===== FIN FUNCIONES DE BARRA DE TÍTULO =====
+
 // Obtener workspace ID de la URL
 const workspaceId = window.location.pathname.substring(1) || 'main';
 let currentFile = null;
@@ -28,7 +136,7 @@ let codeMirrorEditor = null;
 let userPlan = 'FREE';
 let userFeatures = {};
 let currentSidebar = 'files';
-let username = 'Usuario' + Math.floor(Math.random() * 1000);
+let username = localStorage.getItem(`username_${window.location.pathname.substring(1) || 'main'}`) || '';
 let unreadMessages = 0;
 let onlineUsers = new Map();
 let workspacePassword = null;
@@ -65,6 +173,18 @@ let sidebarWidth = 250;
 // Mostrar nombre del workspace
 document.getElementById('workspaceName').textContent = workspaceId;
 document.getElementById('usernameInput').value = username;
+
+// Inicializar estado del chat según si hay nombre
+if (username && username.length > 0) {
+    // Si ya tiene nombre, ocultar el input de nombre
+    const usernameContainer = document.querySelector('.username-input');
+    if (usernameContainer) {
+        usernameContainer.style.display = 'none';
+    }
+} else {
+    // Si no tiene nombre, deshabilitar el chat
+    disableChatInput();
+}
 
 // Verificar si hay contraseña guardada en sessionStorage
 const savedPassword = sessionStorage.getItem(`ws_pass_${workspaceId}`);
@@ -338,6 +458,18 @@ function switchSidebar(panel) {
         sidebar.classList.remove('collapsed');
         unreadMessages = 0;
         updateChatBadge();
+        
+        // Verificar si tiene nombre establecido
+        if (username && username.length > 0) {
+            enableChatInput();
+            document.querySelector('.username-input').style.display = 'none';
+        } else {
+            disableChatInput();
+            document.querySelector('.username-input').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('usernameInput').focus();
+            }, 100);
+        }
     } else if (panel === 'users') {
         document.getElementById('usersPanel').classList.add('active');
         sidebar.classList.remove('collapsed');
@@ -384,22 +516,39 @@ function setUsername() {
     const input = document.getElementById('usernameInput');
     const newUsername = input.value.trim();
     
-    if (newUsername && newUsername.length > 0) {
-        const oldUsername = username;
-        username = newUsername;
-        
-        // Notify server
-        socket.emit('username-change', { 
-            oldUsername, 
-            newUsername,
-            workspaceId 
-        });
-        
-        showToast(`Nombre cambiado a: ${username}`, true);
+    if (!newUsername || newUsername.length === 0) {
+        showToast('Por favor, introduce un nombre');
+        return;
     }
+    
+    const oldUsername = username;
+    username = newUsername;
+    
+    // Guardar en localStorage
+    localStorage.setItem(`username_${workspaceId}`, username);
+    
+    // Habilitar el input del chat
+    enableChatInput();
+    
+    // Notify server
+    socket.emit('username-change', { 
+        oldUsername, 
+        newUsername,
+        workspaceId 
+    });
+    
+    showToast(`Nombre establecido: ${username}`, true);
+    
+    // Ocultar el contenedor de username
+    document.querySelector('.username-input').style.display = 'none';
 }
 
 function sendMessage() {
+    if (!username || username.length === 0) {
+        showToast('Primero debes establecer un nombre');
+        return;
+    }
+    
     const input = document.getElementById('chatInput');
     const message = input.value.trim();
     
@@ -441,6 +590,11 @@ function addChatMessage(data, isOwn = false) {
         `;
         
         messagesContainer.appendChild(messageEl);
+        
+        // Mostrar notificación si el chat no está abierto y no es mensaje propio
+        if (currentSidebar !== 'chat' && !isOwn && data.type !== 'system') {
+            showChatNotification(data.username, data.message);
+        }
     }
     
     // Scroll to bottom
@@ -480,6 +634,70 @@ function updateUserList() {
 
 function updateUsersBadge(count) {
     document.getElementById('usersBadge').textContent = count;
+}
+
+// Mostrar notificación de chat
+let chatNotificationTimeout;
+function showChatNotification(username, message) {
+    const notification = document.getElementById('chatNotification');
+    const userEl = document.getElementById('notificationUser');
+    const messageEl = document.getElementById('notificationMessage');
+    
+    // Truncar mensaje si es muy largo
+    const truncatedMessage = message.length > 100 ? message.substring(0, 100) + '...' : message;
+    
+    userEl.textContent = username;
+    messageEl.textContent = truncatedMessage;
+    
+    // Mostrar notificación
+    notification.classList.add('show');
+    
+    // Reemplazar iconos
+    setTimeout(() => {
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }, 50);
+    
+    // Auto-ocultar después de 5 segundos
+    clearTimeout(chatNotificationTimeout);
+    chatNotificationTimeout = setTimeout(() => {
+        closeChatNotification();
+    }, 5000);
+    
+    // Hacer clic en la notificación para abrir el chat
+    notification.onclick = () => {
+        switchSidebar('chat');
+        closeChatNotification();
+    };
+}
+
+// Cerrar notificación de chat
+function closeChatNotification() {
+    const notification = document.getElementById('chatNotification');
+    notification.classList.remove('show');
+    notification.onclick = null;
+}
+
+// Habilitar input del chat
+function enableChatInput() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = chatInput.parentElement.querySelector('button');
+    
+    chatInput.disabled = false;
+    chatInput.placeholder = 'Escribe un mensaje...';
+    sendBtn.disabled = false;
+}
+
+// Deshabilitar input del chat
+function disableChatInput() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = chatInput.parentElement.querySelector('button');
+    
+    chatInput.disabled = true;
+    chatInput.placeholder = 'Establece un nombre primero...';
+    chatInput.value = '';
+    sendBtn.disabled = true;
 }
 
 function escapeHtml(text) {
@@ -547,6 +765,270 @@ function initCodeMirror() {
         }
     });
 }
+
+// ===== FUNCIONES DE LA BARRA DE HERRAMIENTAS DEL EDITOR =====
+
+// Guardar archivo manualmente
+function saveFile() {
+    if (!currentFile || !codeMirrorEditor) {
+        showToast('No hay archivo abierto para guardar');
+        return;
+    }
+    
+    const content = codeMirrorEditor.getValue();
+    socket.emit('save-file', {
+        workspaceId,
+        path: currentFile,
+        content
+    });
+    
+    showToast('Archivo guardado', true);
+}
+
+// Deshacer cambios
+function undoEditor() {
+    if (codeMirrorEditor) {
+        codeMirrorEditor.undo();
+    }
+}
+
+// Rehacer cambios
+function redoEditor() {
+    if (codeMirrorEditor) {
+        codeMirrorEditor.redo();
+    }
+}
+
+// Buscar en el editor
+function findInEditor() {
+    if (codeMirrorEditor) {
+        codeMirrorEditor.execCommand('find');
+    }
+}
+
+// Reemplazar en el editor
+function replaceInEditor() {
+    if (codeMirrorEditor) {
+        codeMirrorEditor.execCommand('replace');
+    }
+}
+
+// Formatear documento
+function formatDocument() {
+    if (!codeMirrorEditor) {
+        showToast('No hay archivo abierto');
+        return;
+    }
+    
+    const mode = codeMirrorEditor.getOption('mode');
+    const content = codeMirrorEditor.getValue();
+    
+    // Formatear según el tipo de archivo
+    if (mode === 'javascript' || mode === 'application/json') {
+        try {
+            const formatted = JSON.stringify(JSON.parse(content), null, 4);
+            codeMirrorEditor.setValue(formatted);
+            showToast('Documento formateado', true);
+        } catch (e) {
+            // Si no es JSON válido, intentar formatear como JavaScript básico
+            const lines = content.split('\n');
+            let indentLevel = 0;
+            const formatted = lines.map(line => {
+                const trimmed = line.trim();
+                
+                // Reducir indentación antes de llaves de cierre
+                if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
+                    indentLevel = Math.max(0, indentLevel - 1);
+                }
+                
+                const formattedLine = '    '.repeat(indentLevel) + trimmed;
+                
+                // Aumentar indentación después de llaves de apertura
+                if (trimmed.endsWith('{') || trimmed.endsWith('[') || trimmed.endsWith('(')) {
+                    indentLevel++;
+                }
+                
+                return formattedLine;
+            }).join('\n');
+            
+            codeMirrorEditor.setValue(formatted);
+            showToast('Documento formateado', true);
+        }
+    } else {
+        showToast('Formateo automático no disponible para este tipo de archivo');
+    }
+}
+
+// ===== FUNCIONES DE FORMATO DE TEXTO =====
+
+// Insertar negrita (Markdown)
+function insertBold() {
+    if (!codeMirrorEditor) return;
+    
+    const selection = codeMirrorEditor.getSelection();
+    if (selection) {
+        codeMirrorEditor.replaceSelection(`**${selection}**`);
+    } else {
+        const cursor = codeMirrorEditor.getCursor();
+        codeMirrorEditor.replaceRange('****', cursor);
+        codeMirrorEditor.setCursor({line: cursor.line, ch: cursor.ch + 2});
+    }
+    codeMirrorEditor.focus();
+}
+
+// Insertar cursiva (Markdown)
+function insertItalic() {
+    if (!codeMirrorEditor) return;
+    
+    const selection = codeMirrorEditor.getSelection();
+    if (selection) {
+        codeMirrorEditor.replaceSelection(`*${selection}*`);
+    } else {
+        const cursor = codeMirrorEditor.getCursor();
+        codeMirrorEditor.replaceRange('**', cursor);
+        codeMirrorEditor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+    }
+    codeMirrorEditor.focus();
+}
+
+// Insertar subrayado (HTML para Markdown/HTML)
+function insertUnderline() {
+    if (!codeMirrorEditor) return;
+    
+    const mode = codeMirrorEditor.getOption('mode');
+    const selection = codeMirrorEditor.getSelection();
+    
+    if (mode === 'htmlmixed' || mode === 'xml') {
+        // Para HTML usar etiqueta <u>
+        if (selection) {
+            codeMirrorEditor.replaceSelection(`<u>${selection}</u>`);
+        } else {
+            const cursor = codeMirrorEditor.getCursor();
+            codeMirrorEditor.replaceRange('<u></u>', cursor);
+            codeMirrorEditor.setCursor({line: cursor.line, ch: cursor.ch + 3});
+        }
+    } else {
+        // Para Markdown usar HTML
+        if (selection) {
+            codeMirrorEditor.replaceSelection(`<u>${selection}</u>`);
+        } else {
+            const cursor = codeMirrorEditor.getCursor();
+            codeMirrorEditor.replaceRange('<u></u>', cursor);
+            codeMirrorEditor.setCursor({line: cursor.line, ch: cursor.ch + 3});
+        }
+    }
+    codeMirrorEditor.focus();
+}
+
+// Cambiar tamaño de fuente
+function changeFontSize() {
+    if (!codeMirrorEditor) return;
+    
+    const select = document.getElementById('fontSizeSelect');
+    const fontSize = select.value + 'px';
+    
+    const cmElement = document.querySelector('.CodeMirror');
+    if (cmElement) {
+        cmElement.style.fontSize = fontSize;
+        codeMirrorEditor.refresh();
+        
+        // Guardar preferencia
+        localStorage.setItem('editor_fontSize', fontSize);
+        showToast(`Tamaño de fuente: ${fontSize}`, true);
+    }
+}
+
+// Cambiar tipo de fuente
+function changeFontFamily() {
+    if (!codeMirrorEditor) return;
+    
+    const select = document.getElementById('fontFamilySelect');
+    const fontFamily = select.value;
+    
+    const cmElement = document.querySelector('.CodeMirror');
+    if (cmElement) {
+        cmElement.style.fontFamily = fontFamily;
+        codeMirrorEditor.refresh();
+        
+        // Guardar preferencia
+        localStorage.setItem('editor_fontFamily', fontFamily);
+        showToast('Tipo de fuente actualizado', true);
+    }
+}
+
+// Cargar preferencias de fuente al iniciar
+function loadEditorPreferences() {
+    const savedFontSize = localStorage.getItem('editor_fontSize');
+    const savedFontFamily = localStorage.getItem('editor_fontFamily');
+    
+    if (savedFontSize) {
+        const select = document.getElementById('fontSizeSelect');
+        const sizeValue = parseInt(savedFontSize);
+        if (select) select.value = sizeValue;
+        
+        const cmElement = document.querySelector('.CodeMirror');
+        if (cmElement) {
+            cmElement.style.fontSize = savedFontSize;
+        }
+    }
+    
+    if (savedFontFamily) {
+        const select = document.getElementById('fontFamilySelect');
+        if (select) select.value = savedFontFamily;
+        
+        const cmElement = document.querySelector('.CodeMirror');
+        if (cmElement) {
+            cmElement.style.fontFamily = savedFontFamily;
+        }
+    }
+    
+    if (codeMirrorEditor) {
+        codeMirrorEditor.refresh();
+    }
+}
+
+// ===== FIN FUNCIONES DE FORMATO DE TEXTO =====
+
+// Atajos de teclado
+document.addEventListener('keydown', (e) => {
+    // Ctrl+S para guardar
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+    }
+    
+    // Ctrl+F para buscar
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        findInEditor();
+    }
+    
+    // Ctrl+H para reemplazar
+    if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        replaceInEditor();
+    }
+    
+    // Ctrl+B para negrita
+    if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        insertBold();
+    }
+    
+    // Ctrl+I para cursiva
+    if (e.ctrlKey && e.key === 'i') {
+        e.preventDefault();
+        insertItalic();
+    }
+    
+    // Ctrl+U para subrayado
+    if (e.ctrlKey && e.key === 'u') {
+        e.preventDefault();
+        insertUnderline();
+    }
+});
+
+// ===== FIN FUNCIONES DE LA BARRA DE HERRAMIENTAS =====
 
 // Detectar modo de CodeMirror según extensión
 function getModeFromFilename(filename) {
@@ -1036,6 +1518,9 @@ function showEditor() {
     if (codeMirrorEditor) {
         codeMirrorEditor.refresh();
         codeMirrorEditor.focus();
+        
+        // Cargar preferencias de fuente
+        loadEditorPreferences();
     }
 }
 
@@ -1764,3 +2249,324 @@ socket.on('workspace-info', (data) => {
     workspaceHasPassword = data.hasPassword || false;
     updatePasswordButton();
 });
+
+// ===== FUNCIONES DE SUBIDA DE ARCHIVOS =====
+
+let pendingUploadFiles = [];
+
+// Mostrar modal de subida
+function showUploadModal() {
+    document.getElementById('uploadModal').classList.add('show');
+    resetUploadModal();
+    setTimeout(() => {
+        feather.replace();
+    }, 50);
+}
+
+// Cerrar modal de subida
+function closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('show');
+    resetUploadModal();
+}
+
+// Resetear el modal a su estado inicial
+function resetUploadModal() {
+    pendingUploadFiles = [];
+    document.getElementById('uploadOptions').style.display = 'none';
+    document.getElementById('uploadAreaContainer').style.display = 'block';
+    document.getElementById('uploadFileList').style.display = 'none';
+    document.getElementById('uploadConfirmBtn').style.display = 'none';
+    document.getElementById('fileListContainer').innerHTML = '';
+}
+
+// Mostrar opciones de subida
+function showUploadOptions() {
+    document.getElementById('uploadOptions').style.display = 'flex';
+}
+
+// Seleccionar archivos
+function selectFiles() {
+    const input = document.getElementById('fileUploadInput');
+    input.onchange = handleFileSelection;
+    input.click();
+    document.getElementById('uploadOptions').style.display = 'none';
+}
+
+// Seleccionar carpeta
+function selectFolder() {
+    const input = document.getElementById('folderUploadInput');
+    input.onchange = handleFolderSelection;
+    input.click();
+    document.getElementById('uploadOptions').style.display = 'none';
+}
+
+// Manejar selección de archivos
+function handleFileSelection(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+    
+    pendingUploadFiles = files.map(file => ({
+        file: file,
+        path: file.name
+    }));
+    
+    showFileList();
+    event.target.value = '';
+}
+
+// Manejar selección de carpeta
+function handleFolderSelection(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+    
+    pendingUploadFiles = files.map(file => ({
+        file: file,
+        path: file.webkitRelativePath || file.name
+    }));
+    
+    showFileList();
+    event.target.value = '';
+}
+
+// Mostrar lista de archivos
+function showFileList() {
+    document.getElementById('uploadAreaContainer').style.display = 'none';
+    document.getElementById('uploadFileList').style.display = 'block';
+    document.getElementById('uploadConfirmBtn').style.display = 'flex';
+    
+    const container = document.getElementById('fileListContainer');
+    container.innerHTML = '';
+    
+    pendingUploadFiles.forEach(fileData => {
+        const item = document.createElement('div');
+        item.className = 'file-list-item';
+        
+        const size = formatFileSize(fileData.file.size);
+        
+        item.innerHTML = `
+            <i data-feather="file"></i>
+            <span class="file-path">${fileData.path}</span>
+            <span class="file-size">${size}</span>
+        `;
+        
+        container.appendChild(item);
+    });
+    
+    document.getElementById('fileCount').textContent = pendingUploadFiles.length;
+    
+    setTimeout(() => {
+        feather.replace();
+    }, 50);
+}
+
+// Formatear tamaño de archivo
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Confirmar subida
+async function confirmUpload() {
+    const uploadPath = currentFolder || '';
+    
+    try {
+        document.getElementById('uploadConfirmBtn').disabled = true;
+        document.getElementById('uploadConfirmBtn').innerHTML = '<i data-feather="loader" style="width: 14px; height: 14px; animation: spin 1s linear infinite;"></i> Subiendo...';
+        
+        let successCount = 0;
+        
+        // Crear estructura de carpetas primero si es necesario
+        const folders = new Set();
+        for (let fileData of pendingUploadFiles) {
+            const parts = fileData.path.split('/');
+            let currentPath = uploadPath;
+            
+            for (let i = 0; i < parts.length - 1; i++) {
+                currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+                folders.add(currentPath);
+            }
+        }
+        
+        // Crear carpetas en orden
+        for (let folderPath of Array.from(folders).sort()) {
+            await createFolderPath(folderPath);
+        }
+        
+        // Subir archivos
+        for (let fileData of pendingUploadFiles) {
+            const fullPath = uploadPath ? `${uploadPath}/${fileData.path}` : fileData.path;
+            const success = await uploadFileContent(fileData.file, fullPath);
+            if (success) successCount++;
+        }
+        
+        if (successCount > 0) {
+            showToast(`${successCount} archivo(s) subido(s) correctamente`, 'success');
+            closeUploadModal();
+        } else {
+            showToast('No se pudo subir ningún archivo', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error subiendo archivos:', error);
+        showToast('Error al subir archivos: ' + error.message, 'error');
+    } finally {
+        document.getElementById('uploadConfirmBtn').disabled = false;
+        document.getElementById('uploadConfirmBtn').innerHTML = '<i data-feather="upload" style="width: 14px; height: 14px;"></i> Subir';
+        feather.replace();
+    }
+}
+
+// Manejar drag over
+function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('uploadArea').classList.add('dragover');
+}
+
+// Manejar drag leave
+function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('uploadArea').classList.remove('dragover');
+}
+
+// Manejar drop
+async function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('uploadArea').classList.remove('dragover');
+    
+    const items = event.dataTransfer.items;
+    const files = event.dataTransfer.files;
+    
+    pendingUploadFiles = [];
+    
+    if (items && items.length > 0) {
+        // Verificar si es una carpeta
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.webkitGetAsEntry) {
+                const entry = item.webkitGetAsEntry();
+                await processEntry(entry, '');
+            }
+        }
+    } else if (files && files.length > 0) {
+        pendingUploadFiles = Array.from(files).map(file => ({
+            file: file,
+            path: file.name
+        }));
+    }
+    
+    if (pendingUploadFiles.length > 0) {
+        showFileList();
+    }
+}
+
+// Procesar entrada de archivo/carpeta
+async function processEntry(entry, path) {
+    if (entry.isFile) {
+        return new Promise((resolve) => {
+            entry.file((file) => {
+                const filePath = path ? `${path}/${file.name}` : file.name;
+                pendingUploadFiles.push({ file, path: filePath });
+                resolve();
+            });
+        });
+    } else if (entry.isDirectory) {
+        const dirReader = entry.createReader();
+        return new Promise((resolve) => {
+            dirReader.readEntries(async (entries) => {
+                const dirPath = path ? `${path}/${entry.name}` : entry.name;
+                for (let childEntry of entries) {
+                    await processEntry(childEntry, dirPath);
+                }
+                resolve();
+            });
+        });
+    }
+}
+
+// Crear una ruta de carpeta completa
+function createFolderPath(folderPath) {
+    return new Promise((resolve) => {
+        // Verificar si la carpeta ya existe
+        const pathParts = folderPath.split('/');
+        let currentStructure = fileStructure;
+        let folderExists = true;
+        
+        for (let part of pathParts) {
+            if (currentStructure[part] && currentStructure[part].type === 'folder') {
+                currentStructure = currentStructure[part].children;
+            } else {
+                folderExists = false;
+                break;
+            }
+        }
+        
+        if (folderExists) {
+            resolve();
+            return;
+        }
+        
+        // Crear la carpeta
+        socket.emit('create-folder', { 
+            workspaceId, 
+            name: folderPath 
+        });
+        
+        // Esperar confirmación
+        setTimeout(resolve, 100);
+    });
+}
+
+// Subir contenido de archivo
+async function uploadFileContent(file, fullPath) {
+    try {
+        const content = await readFileAsText(file);
+        
+        return new Promise((resolve) => {
+            // Crear el archivo usando socket
+            socket.emit('create-file', { 
+                workspaceId, 
+                name: fullPath 
+            });
+            
+            // Esperar un momento para que se cree el archivo
+            setTimeout(() => {
+                // Actualizar el contenido del archivo
+                socket.emit('send-changes', {
+                    workspaceId,
+                    path: fullPath,
+                    content: content
+                });
+                
+                resolve(true);
+            }, 200);
+        });
+        
+    } catch (error) {
+        console.error(`Error al subir ${file.name}:`, error);
+        return false;
+    }
+}
+
+// Leer archivo como texto
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            resolve(e.target.result);
+        };
+        
+        reader.onerror = (e) => {
+            reject(new Error(`Error leyendo ${file.name}`));
+        };
+        
+        // Intentar leer como texto
+        reader.readAsText(file);
+    });
+}

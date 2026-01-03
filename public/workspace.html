@@ -54,6 +54,12 @@
             height: 12px;
             border-radius: 50%;
             cursor: pointer;
+            transition: opacity 0.2s;
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-button:hover {
+            opacity: 0.7;
         }
 
         .titlebar-button.close { background: #ff5f57; }
@@ -66,6 +72,48 @@
             font-size: 13px;
             color: #969696;
             font-weight: 400;
+        }
+
+        .titlebar-clock {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: #cccccc;
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .titlebar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            color: #969696;
+            margin-left: auto;
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-date {
+            color: #cccccc;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            color: #cccccc;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: #3e3e42;
         }
 
         /* Header */
@@ -437,6 +485,75 @@
             flex: 1;
             overflow: hidden;
             position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .toolbar-btn {
+            background: transparent;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #3e3e42;
+            border-color: #569cd6;
+        }
+
+        .toolbar-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #3e3e42;
+            margin: 0 4px;
+        }
+
+        .toolbar-select {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .toolbar-select:hover {
+            border-color: #569cd6;
+        }
+
+        .toolbar-select option {
+            background: #2d2d30;
+            color: #cccccc;
+        }
+
+        .editor-content {
+            flex: 1;
+            overflow: hidden;
         }
 
         .CodeMirror {
@@ -596,6 +713,110 @@
             border-color: #4ec9b0;
         }
 
+        /* Upload Modal */
+        .upload-area {
+            border: 2px dashed #3e3e42;
+            border-radius: 8px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #1e1e1e;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #0e639c;
+            background: #252526;
+        }
+
+        .upload-area.dragover {
+            border-color: #4ec9b0;
+            background: #252526;
+            border-style: solid;
+        }
+
+        .upload-area .icon {
+            font-size: 3em;
+            color: #4ec9b0;
+            margin-bottom: 15px;
+        }
+
+        .upload-area .icon svg {
+            width: 60px;
+            height: 60px;
+        }
+
+        .upload-area h3 {
+            color: #cccccc;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .upload-area p {
+            color: #969696;
+            font-size: 0.9em;
+        }
+
+        .upload-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .upload-option-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: #3e3e42;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .upload-option-btn:hover {
+            background: #4e4e52;
+            border-color: #0e639c;
+        }
+
+        .upload-option-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #252526;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            color: #cccccc;
+            font-size: 0.9em;
+        }
+
+        .file-list-item svg {
+            width: 16px;
+            height: 16px;
+            color: #4ec9b0;
+        }
+
+        .file-list-item .file-path {
+            flex: 1;
+            color: #cccccc;
+        }
+
+        .file-list-item .file-size {
+            color: #969696;
+            font-size: 0.85em;
+        }
+
         /* Toast */
         .toast {
             position: fixed;
@@ -620,6 +841,319 @@
 
         .toast.success {
             border-color: #4ec9b0;
+        }
+
+        /* Chat Notification */
+        .chat-notification {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #2d2d30;
+            border: 1px solid #4ec9b0;
+            border-radius: 8px;
+            padding: 15px;
+            max-width: 350px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateX(400px);
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 10000;
+        }
+
+        .chat-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
+        }
+
+        .chat-notification-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: #4ec9b0;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        .chat-notification-header svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .chat-notification-user {
+            color: #4ec9b0;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .chat-notification-message {
+            color: #cccccc;
+            font-size: 0.9em;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .chat-notification-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #969696;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-notification-close:hover {
+            color: #cccccc;
+        }
+
+        /* Tema Claro */
+        body.light-theme {
+            background: #f3f3f3;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .titlebar {
+            background: #e8e8e8;
+            border-bottom: 1px solid #d0d0d0;
+        }
+
+        body.light-theme .titlebar-button {
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .titlebar-clock,
+        body.light-theme .titlebar-date {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .theme-toggle {
+            border-color: #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .theme-toggle:hover {
+            background: #d0d0d0;
+        }
+
+        body.light-theme .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .header-left h1,
+        body.light-theme .header-right {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .header-actions button {
+            background: #f0f0f0;
+            color: #1e1e1e;
+            border: 1px solid #d0d0d0;
+        }
+
+        body.light-theme .header-actions button:hover {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .activity-bar {
+            background: #f3f3f3;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .activity-bar-item {
+            color: #424242;
+        }
+
+        body.light-theme .activity-bar-item.active,
+        body.light-theme .activity-bar-item:hover {
+            background: #e8e8e8;
+            color: #0e639c;
+        }
+
+        body.light-theme .sidebar {
+            background: #f8f8f8;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .sidebar-header {
+            color: #1e1e1e;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f8f8;
+        }
+
+        body.light-theme .sidebar-title {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .workspace-info {
+            color: #5a5a5a;
+        }
+
+        body.light-theme .tree-item {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .tree-item:hover {
+            background: #e8e8e8;
+        }
+
+        body.light-theme .tree-item.selected {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .resize-handle {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .editor-container {
+            background: #ffffff;
+        }
+
+        body.light-theme .editor-tabs {
+            background: #f3f3f3;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .editor-tab {
+            background: #f3f3f3;
+            color: #1e1e1e;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .editor-tab.active {
+            background: #ffffff;
+            color: #0e639c;
+        }
+
+        body.light-theme .editor-tab:hover {
+            background: #e8e8e8;
+        }
+
+        body.light-theme .editor-header {
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .editor-toolbar {
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .toolbar-btn {
+            border-color: #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .toolbar-btn:hover {
+            background: #e8e8e8;
+            border-color: #0078d4;
+        }
+
+        body.light-theme .toolbar-separator {
+            background: #d0d0d0;
+        }
+
+        body.light-theme .toolbar-select {
+            background: #ffffff;
+            border-color: #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .toolbar-select:hover {
+            border-color: #0078d4;
+        }
+
+        body.light-theme .toolbar-select option {
+            background: #ffffff;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .CodeMirror {
+            background: #ffffff !important;
+            color: #1e1e1e !important;
+        }
+
+        body.light-theme .CodeMirror-gutters {
+            background: #f8f8f8 !important;
+            border-right: 1px solid #e0e0e0 !important;
+        }
+
+        body.light-theme .CodeMirror-linenumber {
+            color: #858585 !important;
+        }
+
+        body.light-theme .modal-overlay {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        body.light-theme .modal-content {
+            background: #ffffff;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        body.light-theme .modal-content h2 {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .modal-content input {
+            background: #f8f8f8;
+            border: 1px solid #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .modal-content button {
+            background: #0e639c;
+        }
+
+        body.light-theme .modal-content button:first-child {
+            background: #f0f0f0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme #toast {
+            background: #ffffff;
+            color: #1e1e1e;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-theme #contextMenu {
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .context-menu-item {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .context-menu-item:hover {
+            background: #e8e8e8;
+        }
+
+        body.light-theme .chat-notification {
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .chat-notification-user {
+            color: #0e639c;
+        }
+
+        body.light-theme .chat-notification-message {
+            color: #424242;
         }
 
         /* Scrollbar */
@@ -956,12 +1490,18 @@
     <!-- Barra de título macOS -->
     <div class="titlebar">
         <div class="titlebar-buttons">
-            <div class="titlebar-button close"></div>
-            <div class="titlebar-button minimize"></div>
-            <div class="titlebar-button maximize"></div>
+            <div class="titlebar-button close" onclick="goToHome()"></div>
+            <div class="titlebar-button minimize" onclick="toggleFullscreen()"></div>
+            <div class="titlebar-button maximize" onclick="minimizeWindow()"></div>
         </div>
-        <div class="titlebar-title">CodeSpace - Workspace</div>
-        <div style="width: 70px;"></div> <!-- Spacer para centrar el título -->
+        <div class="titlebar-clock" id="titlebarClock">00:00:00</div>
+        <div class="titlebar-right">
+            <div class="titlebar-date" id="titlebarDate"></div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <i data-feather="sun" style="width: 14px; height: 14px;"></i>
+                <span id="themeText">Claro</span>
+            </button>
+        </div>
     </div>
 
     <!-- Header -->
@@ -981,10 +1521,6 @@
                 <span id="usersCount">0</span> <span id="usersText">usuarios</span>
             </div>
             <div class="header-actions">
-                <button class="btn" onclick="showGitHubModal()" title="Conectar con GitHub">
-                    <i data-feather="github" style="width: 14px; height: 14px;"></i>
-                    GitHub
-                </button>
                 <button class="btn" onclick="exportWorkspace()" title="Descargar como ZIP">
                     <i data-feather="download" style="width: 14px; height: 14px;"></i>
                     Descargar
@@ -1041,6 +1577,9 @@
                             <button class="icon-btn" onclick="showNewFolderModal()" title="Nueva carpeta">
                                 <i data-feather="folder-plus"></i>
                             </button>
+                            <button class="icon-btn" onclick="showUploadModal()" title="Subir archivos">
+                                <i data-feather="upload"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="file-tree" id="fileTree"></div>
@@ -1092,7 +1631,9 @@
                 <p>Selecciona o crea un archivo para empezar</p>
             </div>
             <div class="editor-wrapper" id="editorWrapper" style="display: none;">
-                <textarea id="editor" style="display: none;"></textarea>
+                <div class="editor-content">
+                    <textarea id="editor" style="display: none;"></textarea>
+                </div>
             </div>
         </div>
     </div>
@@ -1105,27 +1646,6 @@
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button class="btn" onclick="confirmModal()">Crear</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para GitHub -->
-    <div class="modal" id="githubModal">
-        <div class="modal-content" style="min-width: 500px;">
-            <div class="modal-header">Conectar con GitHub</div>
-            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
-                Exporta tu workspace a un repositorio de GitHub
-            </p>
-            <input type="text" class="modal-input" id="githubRepo" placeholder="usuario/repositorio">
-            <input type="text" class="modal-input" id="githubToken" placeholder="Token de acceso personal (opcional)" type="password">
-            <div style="margin-bottom: 20px;">
-                <a href="https://github.com/settings/tokens" target="_blank" style="color: #0e639c; font-size: 0.85em; text-decoration: none;">
-                    ¿Cómo obtener un token de GitHub?
-                </a>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeGitHubModal()">Cancelar</button>
-                <button class="btn" onclick="exportToGitHub()">Exportar a GitHub</button>
             </div>
         </div>
     </div>
@@ -1159,6 +1679,17 @@
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
+
+    <!-- Chat Notification -->
+    <div class="chat-notification" id="chatNotification">
+        <button class="chat-notification-close" onclick="closeChatNotification()">×</button>
+        <div class="chat-notification-header">
+            <i data-feather="message-circle"></i>
+            <span>Nuevo mensaje</span>
+        </div>
+        <div class="chat-notification-user" id="notificationUser"></div>
+        <div class="chat-notification-message" id="notificationMessage"></div>
+    </div>
 
     <!-- Context Menu -->
     <div class="context-menu" id="contextMenu">
@@ -1232,6 +1763,60 @@
             <div class="modal-footer">
                 <button class="btn" onclick="closeRemovePasswordModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="confirmRemovePassword()">Quitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para subir archivos -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content" style="min-width: 500px; max-width: 600px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i data-feather="upload" style="width: 20px; height: 20px; margin-right: 8px;"></i>Subir Archivos</span>
+                <button class="modal-close" onclick="closeUploadModal()" style="background: none; border: none; color: #969696; cursor: pointer; font-size: 24px;">×</button>
+            </div>
+            
+            <div id="uploadAreaContainer">
+                <div class="upload-area" id="uploadArea" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="showUploadOptions()">
+                    <div class="icon">
+                        <i data-feather="upload-cloud"></i>
+                    </div>
+                    <h3>Arrastra archivos o carpetas aquí</h3>
+                    <p>o haz clic para seleccionar</p>
+                </div>
+
+                <div class="upload-options" style="display: none;" id="uploadOptions">
+                    <button class="upload-option-btn" onclick="selectFiles()">
+                        <i data-feather="file"></i>
+                        Seleccionar Archivos
+                    </button>
+                    <button class="upload-option-btn" onclick="selectFolder()">
+                        <i data-feather="folder"></i>
+                        Seleccionar Carpeta
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lista de archivos a subir -->
+            <div id="uploadFileList" style="display: none;">
+                <h4 style="color: #cccccc; margin-bottom: 15px; font-size: 0.95em;">Archivos a subir:</h4>
+                <div id="fileListContainer" style="max-height: 300px; overflow-y: auto; background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 4px; padding: 10px; margin-bottom: 20px;">
+                    <!-- Se llenará con JavaScript -->
+                </div>
+                <p style="color: #969696; font-size: 0.85em; margin-bottom: 20px;">
+                    Total: <span id="fileCount">0</span> archivo(s)
+                </p>
+            </div>
+
+            <!-- Inputs ocultos para subir archivos -->
+            <input type="file" id="fileUploadInput" style="display: none;" multiple>
+            <input type="file" id="folderUploadInput" style="display: none;" webkitdirectory directory>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
+                <button class="btn" id="uploadConfirmBtn" style="display: none;" onclick="confirmUpload()">
+                    <i data-feather="upload" style="width: 14px; height: 14px;"></i>
+                    Subir
+                </button>
             </div>
         </div>
     </div>
