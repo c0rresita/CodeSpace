@@ -213,3 +213,35 @@ export async function cleanOldLogs(): Promise<void> {
         console.error('Error limpiando logs antiguos:', error);
     }
 }
+
+// Obtener todos los logs
+export async function getAllLogs() {
+    if (!isDatabaseConnected()) return [];
+    
+    try {
+        const logs = await AccessLog.find()
+            .sort({ timestamp: -1 })
+            .lean();
+        
+        return logs;
+    } catch (error) {
+        console.error('Error obteniendo todos los logs:', error);
+        return [];
+    }
+}
+
+// Obtener logs de un workspace específico
+export async function getWorkspaceLogs(workspaceId: string) {
+    if (!isDatabaseConnected()) return [];
+    
+    try {
+        const logs = await AccessLog.find({ workspaceId })
+            .sort({ timestamp: -1 })
+            .lean();
+        
+        return logs;
+    } catch (error) {
+        console.error('Error obteniendo logs del workspace:', error);
+        return [];
+    }
+}

@@ -349,6 +349,53 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             }
         });
 
+        // Cambiar contraseña del workspace
+        socket.on('change-workspace-password', async ({ workspaceId, currentPassword, newPassword }) => {
+            const workspace = workspaces.get(workspaceId);
+            if (!workspace) {
+                socket.emit('workspace-password-error', { message: 'Workspace no encontrado' });
+                return;
+            }
+
+            if (!workspace.password) {
+                socket.emit('workspace-password-error', { message: 'El workspace no tiene contraseña establecida' });
+                return;
+            }
+
+            if (!currentPassword || !newPassword) {
+                socket.emit('workspace-password-error', { message: 'Debes proporcionar la contraseña actual y la nueva' });
+                return;
+            }
+
+            if (newPassword.length < 4) {
+                socket.emit('workspace-password-error', { message: 'La nueva contraseña debe tener al menos 4 caracteres' });
+                return;
+            }
+
+            try {
+                // Verificar contraseña actual
+                const match = await bcrypt.compare(currentPassword, workspace.password);
+                if (!match) {
+                    socket.emit('workspace-password-error', { message: 'La contraseña actual es incorrecta' });
+                    return;
+                }
+
+                // Establecer nueva contraseña
+                const hashedPassword = await bcrypt.hash(newPassword, 10);
+                workspace.password = hashedPassword;
+                await saveWorkspace(workspaceId, workspace);
+                
+                socket.emit('workspace-password-changed');
+                io.to(workspaceId).emit('workspace-info', { hasPassword: true });
+                
+                console.log(`🔑 Contraseña cambiada: ${workspaceId}`);
+            } catch (error) {
+                console.error('Error al cambiar contraseña:', error);
+                socket.emit('workspace-password-error', { message: 'Error al cambiar contraseña' });
+            }
+        });
+
+
         // Crear archivo
         socket.on('create-file', async ({ workspaceId, name, parentPath }) => {
             const workspace = workspaces.get(workspaceId);
@@ -497,6 +544,11 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                     io.to(currentWorkspace).emit('users-list', usersList);
                 }
             }
+        });
+
+        // Tickets en tiempo real
+        socket.on('ticket-updated', ({ workspaceId, ticketId }) => {
+            socket.to(workspaceId).emit('ticket-refresh', { ticketId });
         });
     });
 }

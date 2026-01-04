@@ -30,6 +30,8 @@ export interface WorkspaceData {
 
 export interface SessionData {
     isAdmin?: boolean;
+    isModerator?: boolean;
+    userEmail?: string;
     adminEmail?: string;
     id: string;
 }
@@ -38,6 +40,8 @@ export interface SessionData {
 declare module 'express-session' {
     interface SessionData {
         isAdmin?: boolean;
+        isModerator?: boolean;
+        userEmail?: string;
         adminEmail?: string;
     }
 }

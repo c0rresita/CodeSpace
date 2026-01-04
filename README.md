@@ -22,15 +22,23 @@
 
 - **📁 Explorador de Archivos**: Organiza tu código en carpetas y archivos jerárquicos
 - **👥 Edición Colaborativa**: Múltiples usuarios editando en tiempo real con Socket.IO
-- **💬 Chat Persistente**: Chat en vivo con historial guardado (MongoDB o archivos JSON)
-- **🔒 Protección de Archivos**: Protege archivos individuales con contraseña
+- **💬 Chat Personalizable**: Chat en vivo con nombre editable y historial guardado
+- **🔒 Protección de Archivos y Workspaces**: Protege archivos individuales y workspaces completos con contraseña
 - **🎨 Resaltado de Sintaxis**: Soporte para múltiples lenguajes con CodeMirror
 - **📦 Exportación ZIP**: Descarga tus proyectos completos
 - **🐙 Integración GitHub**: Exporta directamente a repositorios GitHub
 - **👀 Usuarios en Línea**: Ve quién está conectado en tiempo real
-- **🔐 Panel de Administración**: Gestiona workspaces y visualiza estadísticas
+- **🎫 Sistema de Tickets**: Soporte integrado para reportar problemas o solicitar ayuda
+- **👮 Panel de Administración Avanzado**: 
+  - Gestión completa de workspaces
+  - Sistema de moderadores con roles
+  - Visualización de tickets y soporte
+  - Estadísticas de accesos y uso
+  - Bloqueo de IPs
+  - Logs de acceso por hora
 - **⚡ Sesiones Únicas**: Sistema de sesiones para identificar usuarios únicos
 - **🧹 Limpieza Automática**: Workspaces inactivos se eliminan automáticamente (configurable)
+- **🌓 Tema Claro/Oscuro**: Cambia entre temas con persistencia
 
 ---
 
@@ -145,12 +153,27 @@ MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/codespace
 ### 3️⃣ Colaboración en Tiempo Real
 
 - **Compartir**: Copia la URL y compártela (ej: `localhost:3000/mi-proyecto`)
-- **Chat**: Click en el icono de chat para comunicarte
+- **Proteger workspace**: Establece contraseña desde el menú superior (icono de candado)
+- **Chat personalizable**: 
+  - Establece tu nombre de usuario
+  - El título del chat se actualiza con tu nombre: "Chat - [tu nombre]"
+  - Puedes cambiar el nombre del chat haciendo clic en el icono de lápiz
+  - Los nombres se guardan automáticamente
 - **Historial**: Los mensajes se guardan automáticamente
 - **Usuarios online**: Ve quiénes están conectados en tiempo real
-- **Cambiar nombre**: Edita tu nombre de usuario en el panel de chat
+- **Tickets**: Reporta problemas usando el sistema de tickets integrado
 
-### 4️⃣ Exportación
+### 4️⃣ Sistema de Tickets
+
+1. Click en el icono de tickets (🎫)
+2. Rellena el formulario con:
+   - Título del problema
+   - Descripción detallada
+   - Prioridad (baja, media, alta)
+3. Los tickets se envían al panel de administración
+4. Los administradores y moderadores pueden responder y gestionar tickets
+
+### 5️⃣ Exportación
 
 **Descargar como ZIP:**
 - Click en el botón de descarga
@@ -164,18 +187,28 @@ MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/codespace
    - Mensaje del commit
 3. Click en "Exportar"
 
-### 5️⃣ Panel de Administración
+### 6️⃣ Panel de Administración
 
 Accede a `http://localhost:3000/accesoadministracion` con:
 - **Email**: `admin@admin.com`
 - **Contraseña**: `admin123`
 
-**Funcionalidades:**
-- Ver todos los workspaces activos
-- Estadísticas de uso (archivos, tamaño, usuarios)
-- Eliminar workspaces (sin alerta de confirmación)
-- Limpiar workspaces expirados
-- Visualizar información detallada
+**Funcionalidades del Administrador:**
+- **Workspaces**: Ver, editar contraseñas, eliminar workspaces
+- **Usuarios Activos**: Monitoreo en tiempo real de usuarios conectados
+- **Logs**: 
+  - Estadísticas por hora
+  - Top workspaces más visitados
+  - Bloqueo de IPs sospechosas
+- **Tickets**: Ver y gestionar tickets de soporte
+- **Moderadores**: Crear y gestionar cuentas de moderadores (solo admin principal)
+
+**Sistema de Moderadores:**
+- Los moderadores pueden acceder al panel de administración
+- Pueden gestionar tickets y ver estadísticas
+- No pueden crear otros moderadores (solo el admin principal)
+- Inicio de sesión con email y contraseña cifrada
+- Seguimiento de último acceso y estado activo/inactivo
 
 ---
 
@@ -234,10 +267,11 @@ share-code/
 │   └── js/
 │       └── workspace.js     # Lógica del editor
 ├── workspaces-data/         # Datos persistentes
-│   └── [workspace-id]/      # Un directorio por workspace
-│       ├── files.json       # Estructura de archivos
-│       ├── metadata.json    # Metadatos del workspace
-│       └── chat.json        # Historial de chat (si no hay MongoDB)
+│   ├── [workspace-id]/      # Un directorio por workspace
+│   │   ├── files.json       # Estructura de archivos
+│   │   ├── metadata.json    # Metadatos del workspace
+│   │   └── chat.json        # Historial de chat (si no hay MongoDB)
+│   └── moderators.json      # Cuentas de moderadores
 ├── .env                     # Variables de entorno
 ├── .env.example             # Ejemplo de configuración
 ├── package.json             # Dependencias
@@ -251,10 +285,18 @@ share-code/
 ## 🔐 Seguridad
 
 - **Contraseñas cifradas** con bcrypt (salt rounds: 10)
-- **Sesiones únicas** con express-session
-- **Protección de archivos** con contraseña individual
+  - Contraseñas de archivos protegidos
+  - Contraseñas de workspaces
+  - Contraseñas de moderadores
+- **Sesiones seguras** con express-session y secretos configurables
+- **Protección multinivel**:
+  - Archivos individuales con contraseña
+  - Workspaces completos con contraseña
+- **Control de acceso basado en roles**:
+  - Administrador principal (acceso completo)
+  - Moderadores (gestión de tickets y estadísticas)
 - **Validación de entrada** en todos los endpoints
-- **Sin autenticación requerida** para usuarios (modo anónimo)
+- **Sin autenticación requerida** para usuarios finales (modo anónimo)
 - **Panel admin protegido** con credenciales
 
 ---
@@ -281,9 +323,12 @@ El chat funciona con dos modos de almacenamiento:
 
 - ✅ Mensajes en tiempo real con Socket.IO
 - ✅ Historial persistente automático
+- ✅ Nombre de chat personalizable y editable
+- ✅ Título dinámico basado en el usuario
 - ✅ Límite de 500 mensajes (archivos) o 30 días (MongoDB)
 - ✅ Recuperación al recargar página
 - ✅ Estadísticas de mensajes y usuarios únicos
+- ✅ Identificación de usuarios por nombre personalizado
 
 ---
 
@@ -389,8 +434,7 @@ Este proyecto está bajo la Licencia MIT.
 
 **⭐ Si te gusta este proyecto, dale una estrella en GitHub ⭐**
 
-**🐛 Reporta bugs en [Issues](https://github.com/c0rresita/AutoInjeccion-Tool/issues)**
 
-Made with ❤️ by c0rresita
+by c0rresita
 
 </div>

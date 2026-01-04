@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import workspaceRoutes from './routes/workspace.routes';
 import chatRoutes from './routes/chat.routes';
+import ticketRoutes from './routes/ticket.routes';
 
 const app = express();
 const server = createServer(app);
@@ -50,7 +51,7 @@ app.get('/accesoadministracion', (req, res) => {
 });
 
 app.get('/admin', (req, res) => {
-    if (req.session && req.session.isAdmin) {
+    if (req.session && (req.session.isAdmin || req.session.isModerator)) {
         res.sendFile(path.join(__dirname, '../public', 'admin.html'));
     } else {
         res.status(401).json({ error: 'Acceso no autorizado' });
@@ -66,6 +67,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/workspace', workspaceRoutes);
 app.use('/api/chat', chatRoutes);
+
+// Rutas de tickets con acceso a io
+app.use('/api/tickets', (req, res, next) => {
+    (req as any).io = io;
+    next();
+}, ticketRoutes);
 
 // Configurar Socket.IO
 setupSocketHandlers(io, sessionMiddleware);

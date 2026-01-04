@@ -103,27 +103,60 @@ function loadSavedTheme() {
     if (savedTheme === 'light') {
         body.classList.add('light-theme');
         body.classList.remove('dark-theme');
-        themeText.textContent = 'Oscuro';
-        themeIcon.setAttribute('data-feather', 'moon');
+        if (themeText) themeText.textContent = 'Oscuro';
+        if (themeIcon) themeIcon.setAttribute('data-feather', 'moon');
     } else {
         body.classList.add('dark-theme');
         body.classList.remove('light-theme');
-        themeText.textContent = 'Claro';
-        themeIcon.setAttribute('data-feather', 'sun');
+        if (themeText) themeText.textContent = 'Claro';
+        if (themeIcon) themeIcon.setAttribute('data-feather', 'sun');
     }
     
-    feather.replace();
+    if (typeof feather !== 'undefined') feather.replace();
 }
 
 // Cargar tema al iniciar
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedTheme();
+    
+    // Cargar nombre del chat guardado
+    const savedChatName = localStorage.getItem(`chatName_${workspaceId}`);
+    if (savedChatName) {
+        const chatTitle = document.getElementById('chatTitle');
+        if (chatTitle) {
+            chatTitle.textContent = savedChatName;
+        }
+    }
+    
+    // Cargar nombre de usuario en el input si existe
+    const savedUsername = localStorage.getItem(`username_${workspaceId}`);
+    if (savedUsername) {
+        const usernameInput = document.getElementById('usernameInput');
+        if (usernameInput) {
+            usernameInput.value = savedUsername;
+        }
+    }
 });
 
 // ===== FIN FUNCIONES DE BARRA DE TÍTULO =====
 
 // Obtener workspace ID de la URL
 const workspaceId = window.location.pathname.substring(1) || 'main';
+
+// Generar userId y sessionId únicos para tickets
+let userId = localStorage.getItem('user_id');
+let sessionId = sessionStorage.getItem('session_id');
+
+if (!userId) {
+    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('user_id', userId);
+}
+
+if (!sessionId) {
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem('session_id', sessionId);
+}
+
 let currentFile = null;
 let currentFolder = null;
 let fileStructure = {};
@@ -435,27 +468,39 @@ socket.on('terminal-output', (data) => {
 
 // Switch sidebar panel
 function switchSidebar(panel) {
+    const sidebar = document.querySelector('.sidebar');
+    const clickedItem = event.currentTarget;
+    const isAlreadyActive = clickedItem.classList.contains('active');
+    const isSidebarCollapsed = sidebar.classList.contains('collapsed');
+    
+    // Si el panel ya está activo y la sidebar está visible, colapsar
+    if (isAlreadyActive && !isSidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+        return;
+    }
+    
+    // Si la sidebar estaba colapsada, expandirla
+    if (isSidebarCollapsed) {
+        sidebar.classList.remove('collapsed');
+    }
+    
     currentSidebar = panel;
     
     // Update activity bar
     document.querySelectorAll('.activity-bar-item').forEach(item => {
         item.classList.remove('active');
     });
-    event.currentTarget.classList.add('active');
+    clickedItem.classList.add('active');
     
     // Update sidebar content
     document.querySelectorAll('.sidebar-content').forEach(content => {
         content.classList.remove('active');
     });
     
-    const sidebar = document.querySelector('.sidebar');
-    
     if (panel === 'files') {
         document.getElementById('filesPanel').classList.add('active');
-        sidebar.classList.remove('collapsed');
     } else if (panel === 'chat') {
         document.getElementById('chatPanel').classList.add('active');
-        sidebar.classList.remove('collapsed');
         unreadMessages = 0;
         updateChatBadge();
         
@@ -472,13 +517,10 @@ function switchSidebar(panel) {
         }
     } else if (panel === 'users') {
         document.getElementById('usersPanel').classList.add('active');
-        sidebar.classList.remove('collapsed');
         updateUserList();
-    }
-    
-    // Toggle sidebar if clicking same panel
-    if (sidebar.style.width === '0px') {
-        sidebar.style.width = sidebarWidth + 'px';
+    } else if (panel === 'tickets') {
+        document.getElementById('ticketsPanel').classList.add('active');
+        loadTickets();
     }
 }
 
@@ -488,6 +530,7 @@ const sidebar = document.querySelector('.sidebar');
 
 resizeHandle.addEventListener('mousedown', (e) => {
     isResizing = true;
+    sidebar.classList.add('resizing');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
 });
@@ -506,12 +549,69 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mouseup', () => {
     if (isResizing) {
         isResizing = false;
+        sidebar.classList.remove('resizing');
         document.body.style.cursor = 'default';
         document.body.style.userSelect = 'auto';
     }
 });
 
 // Chat functions
+function editChatName() {
+    const titleElement = document.getElementById('chatTitle');
+    const currentName = titleElement.textContent;
+    
+    // Crear input para editar
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.maxLength = 50;
+    
+    // Reemplazar h3 con input
+    titleElement.replaceWith(input);
+    input.focus();
+    input.select();
+    
+    // Función para guardar
+    const saveName = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+            // Crear nuevo h3
+            const newTitle = document.createElement('h3');
+            newTitle.id = 'chatTitle';
+            newTitle.textContent = newName;
+            input.replaceWith(newTitle);
+            
+            // Guardar en localStorage
+            localStorage.setItem(`chatName_${workspaceId}`, newName);
+            
+            showToast('Nombre del chat actualizado', true);
+            feather.replace();
+        } else {
+            // Restaurar h3 original
+            const newTitle = document.createElement('h3');
+            newTitle.id = 'chatTitle';
+            newTitle.textContent = currentName;
+            input.replaceWith(newTitle);
+            feather.replace();
+        }
+    };
+    
+    // Guardar al presionar Enter o perder foco
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            saveName();
+        } else if (e.key === 'Escape') {
+            const newTitle = document.createElement('h3');
+            newTitle.id = 'chatTitle';
+            newTitle.textContent = currentName;
+            input.replaceWith(newTitle);
+            feather.replace();
+        }
+    });
+    
+    input.addEventListener('blur', saveName);
+}
+
 function setUsername() {
     const input = document.getElementById('usernameInput');
     const newUsername = input.value.trim();
@@ -537,10 +637,17 @@ function setUsername() {
         workspaceId 
     });
     
-    showToast(`Nombre establecido: ${username}`, true);
+    // Actualizar el título del chat con el nombre del usuario
+    const chatTitle = document.getElementById('chatTitle');
+    if (chatTitle) {
+        chatTitle.textContent = `Chat - ${username}`;
+        localStorage.setItem(`chatName_${workspaceId}`, `Chat - ${username}`);
+    }
     
-    // Ocultar el contenedor de username
-    document.querySelector('.username-input').style.display = 'none';
+    showToast(`Nombre ${oldUsername ? 'actualizado' : 'establecido'}: ${username}`, true);
+    
+    // Mostrar el nombre actual en el input
+    input.value = username;
 }
 
 function sendMessage() {
@@ -553,6 +660,55 @@ function sendMessage() {
     const message = input.value.trim();
     
     if (message) {
+        // Detectar comando /name
+        if (message.startsWith('/name ')) {
+            const newName = message.substring(6).trim();
+            
+            if (!newName || newName.length === 0) {
+                showToast('Debes especificar un nombre: /name tu_nombre');
+                input.value = '';
+                return;
+            }
+            
+            if (newName.length > 10) {
+                showToast('El nombre debe tener máximo 10 letras');
+                input.value = '';
+                return;
+            }
+            
+            // Cambiar el nombre
+            const oldUsername = username;
+            username = newName;
+            
+            // Guardar en localStorage
+            localStorage.setItem(`username_${workspaceId}`, username);
+            
+            // Actualizar input de nombre de usuario
+            const usernameInput = document.getElementById('usernameInput');
+            if (usernameInput) {
+                usernameInput.value = username;
+            }
+            
+            // Actualizar título del chat
+            const chatTitle = document.getElementById('chatTitle');
+            if (chatTitle) {
+                chatTitle.textContent = `Chat - ${username}`;
+                localStorage.setItem(`chatName_${workspaceId}`, `Chat - ${username}`);
+            }
+            
+            // Notificar al servidor
+            socket.emit('username-change', { 
+                oldUsername, 
+                newUsername: username,
+                workspaceId 
+            });
+            
+            showToast(`Nombre cambiado a: ${username}`, true);
+            input.value = '';
+            return;
+        }
+        
+        // Enviar mensaje normal
         socket.emit('chat-message', {
             workspaceId,
             username,
@@ -1351,9 +1507,38 @@ socket.on('username-changed', (data) => {
     onlineUsers.set(data.id, data.newUsername);
     updateUserList();
     addChatMessage({ 
-        type: 'system', 
+        type: 'system',
         message: `${data.oldUsername} ahora es ${data.newUsername}` 
     });
+});
+
+// Actualización de tickets en tiempo real
+socket.on('ticket-refresh', async (data) => {
+    await loadTickets();
+    
+    // Si el ticket abierto es el actualizado, recargarlo
+    if (currentTicket && currentTicket._id === data.ticketId) {
+        try {
+            const response = await fetch(`/api/tickets/${data.ticketId}`);
+            if (response.ok) {
+                currentTicket = await response.json();
+                renderTicketMessages();
+                
+                // Scroll al final solo si estaba cerca del final
+                const messagesContainer = document.getElementById('ticketChatMessages');
+                const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
+                if (isNearBottom) {
+                    setTimeout(() => {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }, 100);
+                }
+                
+                showToast('Nuevo mensaje en el ticket', true);
+            }
+        } catch (error) {
+            console.error('Error actualizando ticket:', error);
+        }
+    }
 });
 
 // Respuesta al establecer contraseña en archivo
@@ -2135,12 +2320,63 @@ let workspaceHasPassword = false;
 // Funciones para proteger el workspace
 function toggleWorkspacePassword() {
     if (workspaceHasPassword) {
-        // Mostrar modal para quitar contraseña
-        document.getElementById('removeWorkspacePasswordModal').style.display = 'flex';
+        // Mostrar menú de opciones si tiene contraseña
+        const options = [
+            { text: 'Cambiar contraseña', action: 'change' },
+            { text: 'Quitar contraseña', action: 'remove' }
+        ];
+        
+        showOptionsMenu(options, (action) => {
+            if (action === 'change') {
+                document.getElementById('changeWorkspacePasswordModal').style.display = 'flex';
+            } else if (action === 'remove') {
+                document.getElementById('removeWorkspacePasswordModal').style.display = 'flex';
+            }
+        });
     } else {
         // Mostrar modal para establecer contraseña
         document.getElementById('setWorkspacePasswordModal').style.display = 'flex';
     }
+}
+
+// Función auxiliar para mostrar menú de opciones
+function showOptionsMenu(options, callback) {
+    const menu = document.createElement('div');
+    menu.className = 'context-menu show';
+    menu.style.position = 'absolute';
+    
+    // Posicionar el menú cerca del botón
+    const btn = document.getElementById('workspacePasswordBtn');
+    const rect = btn.getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 5) + 'px';
+    
+    options.forEach(option => {
+        const item = document.createElement('div');
+        item.className = 'context-menu-item';
+        item.textContent = option.text;
+        item.onclick = () => {
+            callback(option.action);
+            document.body.removeChild(menu);
+        };
+        menu.appendChild(item);
+    });
+    
+    document.body.appendChild(menu);
+    
+    // Cerrar al hacer click fuera
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target) && e.target !== btn) {
+            if (document.body.contains(menu)) {
+                document.body.removeChild(menu);
+            }
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+    
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 10);
 }
 
 function closeSetWorkspacePasswordModal() {
@@ -2181,6 +2417,53 @@ function confirmSetWorkspacePassword() {
     });
 }
 
+function closeChangeWorkspacePasswordModal() {
+    document.getElementById('changeWorkspacePasswordModal').style.display = 'none';
+    document.getElementById('currentPasswordChange').value = '';
+    document.getElementById('newPasswordChange').value = '';
+    document.getElementById('confirmPasswordChange').value = '';
+}
+
+function confirmChangeWorkspacePassword() {
+    const currentPassword = document.getElementById('currentPasswordChange').value.trim();
+    const newPassword = document.getElementById('newPasswordChange').value.trim();
+    const confirmPassword = document.getElementById('confirmPasswordChange').value.trim();
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        showToast('Por favor, completa todos los campos');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showToast('Las contraseñas nuevas no coinciden');
+        return;
+    }
+    
+    if (newPassword.length < 4) {
+        showToast('La contraseña debe tener al menos 4 caracteres');
+        return;
+    }
+    
+    if (currentPassword === newPassword) {
+        showToast('La nueva contraseña debe ser diferente a la actual');
+        return;
+    }
+    
+    // Cerrar modal solo cuando todo es válido
+    closeChangeWorkspacePasswordModal();
+    
+    // Limpiar contraseña guardada
+    sessionStorage.removeItem(`ws_pass_${workspaceId}`);
+    
+    // Enviar al servidor
+    socket.emit('change-workspace-password', {
+        workspaceId,
+        currentPassword,
+        newPassword
+    });
+}
+
+
 function closeRemoveWorkspacePasswordModal() {
     document.getElementById('removeWorkspacePasswordModal').style.display = 'none';
     document.getElementById('currentWorkspacePassword').value = '';
@@ -2214,6 +2497,15 @@ socket.on('workspace-password-set', () => {
     showToast('¡Contraseña establecida! Al recargar la página se te pedirá la contraseña.', true);
 });
 
+socket.on('workspace-password-changed', () => {
+    workspaceHasPassword = true;
+    updatePasswordButton();
+    // Limpiar la contraseña en memoria
+    workspacePassword = null;
+    sessionStorage.removeItem(`ws_pass_${workspaceId}`);
+    showToast('¡Contraseña actualizada! Al recargar la página se te pedirá la nueva contraseña.', true);
+});
+
 socket.on('workspace-password-removed', () => {
     workspaceHasPassword = false;
     updatePasswordButton();
@@ -2231,11 +2523,13 @@ function updatePasswordButton() {
     if (!btn) return;
     
     if (workspaceHasPassword) {
-        btn.innerHTML = '<i data-feather="unlock" style="width: 14px; height: 14px;"></i> Quitar Contraseña';
-        btn.title = 'Quitar protección del workspace';
+        btn.innerHTML = '<i data-feather="shield" style="width: 14px; height: 14px;"></i> Protegido';
+        btn.title = 'Workspace protegido - Click para cambiar o quitar contraseña';
+        btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     } else {
         btn.innerHTML = '<i data-feather="lock" style="width: 14px; height: 14px;"></i> Contraseña';
-        btn.title = 'Proteger workspace';
+        btn.title = 'Proteger workspace con contraseña';
+        btn.style.background = '';
     }
     
     // Re-inicializar los iconos de Feather
@@ -2569,4 +2863,345 @@ function readFileAsText(file) {
         // Intentar leer como texto
         reader.readAsText(file);
     });
+}
+// ===== SISTEMA DE TICKETS =====
+
+let tickets = [];
+
+// Toggle sidebar (ocultar/mostrar)
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.toggle('collapsed');
+}
+
+// Añadir evento de teclado para Ctrl+B
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+    }
+});
+
+// Cargar tickets
+async function loadTickets() {
+    try {
+        const response = await fetch(`/api/tickets/workspace/${workspaceId}?userId=${userId}&sessionId=${sessionId}`);
+        
+        if (!response.ok) {
+            throw new Error('Error al cargar tickets');
+        }
+        
+        tickets = await response.json();
+        renderTickets();
+        updateTicketsBadge();
+    } catch (error) {
+        console.error('Error cargando tickets:', error);
+        document.getElementById('ticketsList').innerHTML = `
+            <div style="text-align: center; color: #858585; padding: 20px;">
+                Error al cargar tickets
+            </div>
+        `;
+    }
+}
+
+// Renderizar tickets
+function renderTickets() {
+    const ticketsList = document.getElementById('ticketsList');
+    
+    if (tickets.length === 0) {
+        ticketsList.innerHTML = `
+            <div style="text-align: center; color: #858585; padding: 20px;">
+                <i data-feather="inbox" style="width: 48px; height: 48px; margin-bottom: 10px; opacity: 0.5;"></i>
+                <p>No hay tickets creados</p>
+                <p style="font-size: 0.85em; margin-top: 5px;">Crea un ticket si necesitas ayuda o quieres reportar un problema</p>
+            </div>
+        `;
+        feather.replace();
+        return;
+    }
+    
+    const ticketsHTML = tickets.map(ticket => {
+        const createdDate = new Date(ticket.createdAt).toLocaleDateString('es-ES');
+        const statusClass = ticket.status.replace('-', '');
+        const statusText = {
+            'open': 'Abierto',
+            'in-progress': 'En Progreso',
+            'resolved': 'Resuelto',
+            'closed': 'Cerrado'
+        }[ticket.status] || ticket.status;
+        
+        const categoryIcon = {
+            'bug': '<i data-feather="alert-circle" style="width: 12px; height: 12px;"></i>',
+            'feature': '<i data-feather="star" style="width: 12px; height: 12px;"></i>',
+            'help': '<i data-feather="help-circle" style="width: 12px; height: 12px;"></i>',
+            'other': '<i data-feather="message-square" style="width: 12px; height: 12px;"></i>'
+        }[ticket.category] || '<i data-feather="message-square" style="width: 12px; height: 12px;"></i>';
+        
+        return `
+            <div class="ticket-card" onclick="viewTicketDetail('${ticket._id}')">
+                <div class="ticket-card-header">
+                    <div class="ticket-title">${ticket.title}</div>
+                    <span class="ticket-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="ticket-meta">
+                    <div class="ticket-meta-item">
+                        <span class="ticket-category">${categoryIcon} ${ticket.category}</span>
+                    </div>
+                    <div class="ticket-meta-item">
+                        <span class="ticket-priority ${ticket.priority}">
+                            ${ticket.priority}
+                        </span>
+                    </div>
+                    <div class="ticket-meta-item">
+                        <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                        ${createdDate}
+                    </div>
+                </div>
+                <div class="ticket-description">${ticket.description}</div>
+                ${ticket.responses && ticket.responses.length > 0 ? `
+                    <div class="ticket-responses-count">
+                        <i data-feather="message-circle" style="width: 14px; height: 14px;"></i>
+                        ${ticket.responses.length} respuesta${ticket.responses.length !== 1 ? 's' : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    ticketsList.innerHTML = ticketsHTML;
+    feather.replace();
+}
+
+// Actualizar badge de tickets
+function updateTicketsBadge() {
+    const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in-progress').length;
+    const badge = document.getElementById('ticketsBadge');
+    
+    if (openTickets > 0) {
+        badge.textContent = openTickets;
+        badge.style.display = 'block';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Mostrar modal para nuevo ticket
+function showNewTicketModal() {
+    document.getElementById('ticketModal').classList.add('show');
+    document.getElementById('ticketTitle').value = '';
+    document.getElementById('ticketDescription').value = '';
+    document.getElementById('ticketCategory').value = 'bug';
+    document.getElementById('ticketPriority').value = 'medium';
+    setTimeout(() => {
+        document.getElementById('ticketTitle').focus();
+    }, 100);
+}
+
+// Cerrar modal de ticket
+function closeTicketModal() {
+    document.getElementById('ticketModal').classList.remove('show');
+}
+
+// Cerrar modal al hacer clic fuera de él
+document.addEventListener('DOMContentLoaded', function() {
+    const ticketModal = document.getElementById('ticketModal');
+    if (ticketModal) {
+        ticketModal.addEventListener('click', function(e) {
+            if (e.target === ticketModal) {
+                closeTicketModal();
+            }
+        });
+    }
+});
+
+// Enviar ticket
+async function submitTicket() {
+    const title = document.getElementById('ticketTitle').value.trim();
+    const description = document.getElementById('ticketDescription').value.trim();
+    const category = document.getElementById('ticketCategory').value;
+    const priority = document.getElementById('ticketPriority').value;
+    
+    if (!title || !description) {
+        showToast('Por favor completa todos los campos');
+        return;
+    }
+    
+    if (title.length < 5) {
+        showToast('El título debe tener al menos 5 caracteres');
+        return;
+    }
+    
+    if (description.length < 10) {
+        showToast('La descripción debe tener al menos 10 caracteres');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/tickets/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                workspaceId,
+                userId,
+                sessionId,
+                title,
+                description,
+                category,
+                priority
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('Error del servidor:', data);
+            throw new Error(data.error || 'Error al crear ticket');
+        }
+        
+        showToast('Ticket creado exitosamente');
+        closeTicketModal();
+        loadTickets();
+    } catch (error) {
+        console.error('Error creando ticket:', error);
+        showToast('Error al crear ticket: ' + error.message);
+    }
+}
+
+// Ver detalle de ticket
+let currentTicket = null;
+
+async function viewTicketDetail(ticketId) {
+    try {
+        const response = await fetch(`/api/tickets/${ticketId}`);
+        
+        if (!response.ok) {
+            throw new Error('Error al cargar ticket');
+        }
+        
+        currentTicket = await response.json();
+        
+        // Mostrar modal de chat
+        document.getElementById('ticketChatModal').classList.add('show');
+        document.getElementById('ticketChatTitle').textContent = currentTicket.title;
+        
+        const statusText = {
+            'open': 'Abierto',
+            'in-progress': 'En Progreso',
+            'resolved': 'Resuelto',
+            'closed': 'Cerrado'
+        }[currentTicket.status] || currentTicket.status;
+        
+        document.getElementById('ticketChatStatus').textContent = statusText;
+        document.getElementById('ticketChatCategory').textContent = currentTicket.category;
+        document.getElementById('ticketChatPriority').textContent = currentTicket.priority;
+        document.getElementById('ticketChatDescription').textContent = currentTicket.description;
+        
+        // Renderizar mensajes
+        renderTicketMessages();
+        
+        // Scroll al final
+        setTimeout(() => {
+            const messagesContainer = document.getElementById('ticketChatMessages');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+        
+        feather.replace();
+    } catch (error) {
+        console.error('Error cargando detalle del ticket:', error);
+        showToast('Error al cargar detalle del ticket');
+    }
+}
+
+// Renderizar mensajes del ticket
+function renderTicketMessages() {
+    const messagesContainer = document.getElementById('ticketChatMessages');
+    
+    if (!currentTicket || !currentTicket.responses || currentTicket.responses.length === 0) {
+        messagesContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No hay mensajes aún. Inicia la conversación.</div>';
+        return;
+    }
+    
+    const messagesHTML = currentTicket.responses.map(response => {
+        const time = new Date(response.timestamp).toLocaleString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        return `
+            <div class="ticket-message ${response.isAdmin ? 'admin' : ''}">
+                <div class="ticket-message-header">
+                    <span class="ticket-message-user">${response.isAdmin ? 'Administrador' : 'Tú'}</span>
+                    <span class="ticket-message-time">${time}</span>
+                </div>
+                <div class="ticket-message-text">${response.message}</div>
+            </div>
+        `;
+    }).join('');
+    
+    messagesContainer.innerHTML = messagesHTML;
+}
+
+// Enviar mensaje al ticket
+async function sendTicketMessage() {
+    const input = document.getElementById('ticketChatInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    if (!currentTicket) {
+        showToast('Error: No hay ticket seleccionado');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/tickets/${currentTicket._id}/response`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId,
+                message,
+                isAdmin: false
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al enviar mensaje');
+        }
+        
+        // Actualizar ticket actual
+        currentTicket = data.ticket;
+        
+        // Limpiar input
+        input.value = '';
+        
+        // Renderizar mensajes
+        renderTicketMessages();
+        
+        // Scroll al final
+        setTimeout(() => {
+            const messagesContainer = document.getElementById('ticketChatMessages');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+        
+        // Recargar lista de tickets
+        loadTickets();
+    } catch (error) {
+        console.error('Error enviando mensaje:', error);
+        showToast('Error al enviar mensaje: ' + error.message);
+    }
+}
+
+// Cerrar chat de ticket
+function closeTicketChat() {
+    document.getElementById('ticketChatModal').classList.remove('show');
+    currentTicket = null;
+    document.getElementById('ticketChatInput').value = '';
 }
