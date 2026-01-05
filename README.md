@@ -189,7 +189,7 @@ MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/codespace
 
 ### 6️⃣ Panel de Administración
 
-Accede a `http://localhost:3000/accesoadministracion` con:
+Accede a `http://localhost:3000/login` con:
 - **Email**: `admin@admin.com`
 - **Contraseña**: `admin123`
 
@@ -263,7 +263,7 @@ share-code/
 │   ├── index.html           # Página de inicio
 │   ├── workspace.html       # Editor principal
 │   ├── admin.html           # Panel de administración
-│   ├── accesoadministracion.html  # Login admin
+│   ├── login.html  # Login admin
 │   └── js/
 │       └── workspace.js     # Lógica del editor
 ├── workspaces-data/         # Datos persistentes

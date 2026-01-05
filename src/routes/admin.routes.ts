@@ -166,6 +166,17 @@ router.get('/stats/workspaces', requireAdmin, async (req: Request, res: Response
     }
 });
 
+// Obtener accesos por hora (conexiones reales)
+router.get('/stats/access-by-hour', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const stats = await logService.getAccessByHour();
+        res.json(stats);
+    } catch (error) {
+        console.error('Error obteniendo accesos por hora:', error);
+        res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+});
+
 // Obtener actividad reciente
 router.get('/activity/recent', requireAdmin, async (req: Request, res: Response) => {
     try {

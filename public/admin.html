@@ -1533,6 +1533,28 @@
         </div>
     </div>
 
+    <!-- Modal personalizado para alertas y confirmaciones -->
+    <div class="modal" id="customAlertModal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 id="customAlertTitle" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="alert-circle" id="customAlertIcon" style="width: 20px; height: 20px;"></i>
+                    <span id="customAlertTitleText">Mensaje</span>
+                </h2>
+                <button class="close-modal" onclick="closeCustomAlert()">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="customAlertMessage" style="color: #d4d4d4; line-height: 1.6; white-space: pre-wrap;"></p>
+            </div>
+            <div class="modal-footer" id="customAlertFooter">
+                <button class="btn" onclick="closeCustomAlert()" id="customAlertOkBtn">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification container -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10001; display: flex; flex-direction: column; gap: 10px;"></div>
+
     <script>
         let workspaces = [];
         let filteredWorkspaces = [];
@@ -1540,6 +1562,92 @@
         let pageSize = 20;
         let currentSort = { field: 'lastAccess', order: 'desc' };
         let pendingAction = null;
+
+        // Sistema de alertas y confirmaciones personalizadas
+        let customAlertCallback = null;
+        
+        function showCustomAlert(message, title = 'Mensaje', icon = 'alert-circle') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customAlertModal');
+                const titleText = document.getElementById('customAlertTitleText');
+                const iconElement = document.getElementById('customAlertIcon');
+                const messageElement = document.getElementById('customAlertMessage');
+                const footer = document.getElementById('customAlertFooter');
+                
+                titleText.textContent = title;
+                iconElement.setAttribute('data-feather', icon);
+                messageElement.textContent = message;
+                
+                // Un solo botón "Aceptar"
+                footer.innerHTML = '<button class="btn" onclick="closeCustomAlert(true)">Aceptar</button>';
+                
+                customAlertCallback = resolve;
+                modal.style.display = 'flex';
+                feather.replace();
+            });
+        }
+        
+        function showCustomConfirm(message, title = 'Confirmar', confirmText = 'Confirmar', cancelText = 'Cancelar') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customAlertModal');
+                const titleText = document.getElementById('customAlertTitleText');
+                const iconElement = document.getElementById('customAlertIcon');
+                const messageElement = document.getElementById('customAlertMessage');
+                const footer = document.getElementById('customAlertFooter');
+                
+                titleText.textContent = title;
+                iconElement.setAttribute('data-feather', 'help-circle');
+                messageElement.textContent = message;
+                
+                // Dos botones: Cancelar y Confirmar
+                footer.innerHTML = `
+                    <button class="btn" onclick="closeCustomAlert(false)" style="background: #3e3e42;">${cancelText}</button>
+                    <button class="btn btn-danger" onclick="closeCustomAlert(true)">${confirmText}</button>
+                `;
+                
+                customAlertCallback = resolve;
+                modal.style.display = 'flex';
+                feather.replace();
+            });
+        }
+        
+        function closeCustomAlert(result = false) {
+            const modal = document.getElementById('customAlertModal');
+            modal.style.display = 'none';
+            if (customAlertCallback) {
+                customAlertCallback(result);
+                customAlertCallback = null;
+            }
+        }
+        
+        // Sistema de toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const bgColor = type === 'success' ? '#4ec9b0' : type === 'error' ? '#f48771' : type === 'warning' ? '#dcdcaa' : '#4fc3f7';
+            
+            toast.style.cssText = `
+                background: ${bgColor};
+                color: #1e1e1e;
+                padding: 12px 20px;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-size: 0.9em;
+                font-weight: 500;
+                max-width: 350px;
+                word-wrap: break-word;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
 
         // Cargar workspaces
         async function loadWorkspaces() {
@@ -1856,7 +1964,7 @@
         }
 
         async function confirmAdminRemovePassword() {
-            if (!confirm(`¿Estás seguro de que quieres quitar la protección del workspace "${currentPasswordWorkspaceId}"?`)) {
+            if (!await showCustomConfirm(`¿Estás seguro de que quieres quitar la protección del workspace "${currentPasswordWorkspaceId}"?`, 'Quitar protección', 'Confirmar', 'Cancelar')) {
                 return;
             }
             
@@ -2219,7 +2327,7 @@
             const maxUses = document.getElementById('newCodeMaxUses').value;
 
             if (!code || !discount) {
-                alert('Por favor completa todos los campos obligatorios');
+                showToast('Por favor completa todos los campos obligatorios', 'warning');
                 return;
             }
 
@@ -2259,7 +2367,7 @@
         }
 
         async function deleteDiscountCode(code) {
-            if (!confirm(`¿Eliminar el código ${code}?`)) return;
+            if (!await showCustomConfirm(`¿Eliminar el código ${code}?`, 'Eliminar código', 'Eliminar', 'Cancelar')) return;
 
             try {
                 const response = await fetch(`/api/admin/discounts/${code}`, {
@@ -2431,11 +2539,11 @@
             }
         }
 
-        function blockIPPrompt(ip) {
+        async function blockIPPrompt(ip) {
             const reason = prompt(`¿Por qué deseas bloquear la IP ${ip}?`, 'Actividad sospechosa');
             if (!reason) return;
 
-            const permanent = confirm('¿Bloqueo permanente? (Cancelar = temporal 24h)');
+            const permanent = await showCustomConfirm('¿Bloqueo permanente?', 'Tipo de bloqueo', 'Permanente', 'Temporal (24h)');
             
             blockIP(ip, reason, permanent);
         }
@@ -2458,20 +2566,20 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert(`IP ${ip} bloqueada exitosamente`);
+                    showToast(`IP ${ip} bloqueada exitosamente`, 'success');
                     loadBlockedIPs();
                     loadIPStats();
                 } else {
-                    alert(data.error || 'Error al bloquear IP');
+                    showToast(data.error || 'Error al bloquear IP', 'error');
                 }
             } catch (error) {
                 console.error('Error bloqueando IP:', error);
-                alert('Error al bloquear IP');
+                showToast('Error al bloquear IP', 'error');
             }
         }
 
         async function unblockIP(ip) {
-            if (!confirm(`¿Desbloquear la IP ${ip}?`)) return;
+            if (!await showCustomConfirm(`¿Desbloquear la IP ${ip}?`, 'Desbloquear IP', 'Desbloquear', 'Cancelar')) return;
 
             try {
                 const response = await fetch('/api/admin/unblock-ip', {
@@ -2485,15 +2593,15 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert(`IP ${ip} desbloqueada exitosamente`);
+                    showToast(`IP ${ip} desbloqueada exitosamente`, 'success');
                     loadBlockedIPs();
                     loadIPStats();
                 } else {
-                    alert(data.error || 'Error al desbloquear IP');
+                    showToast(data.error || 'Error al desbloquear IP', 'error');
                 }
             } catch (error) {
                 console.error('Error desbloqueando IP:', error);
-                alert('Error al desbloquear IP');
+                showToast('Error al desbloquear IP', 'error');
             }
         }
 
@@ -2522,8 +2630,10 @@
                 document.getElementById('reportBlockedIPs').textContent = data.totalBlockedIPs || 0;
                 document.getElementById('reportTotalStorage').textContent = formatBytes(data.totalStorage || 0);
                 
-                // Mostrar gráfico de accesos por hora
-                renderAccessByHourChart(data.accessByHour || {});
+                // Cargar gráfico de accesos por hora desde AccessLog
+                const accessResponse = await fetch('/api/admin/stats/access-by-hour');
+                const accessByHour = await accessResponse.json();
+                renderAccessByHourChart(accessByHour || {});
                 
                 // Mostrar top workspaces
                 renderTopWorkspaces(data.topWorkspaces || []);
@@ -2534,7 +2644,7 @@
                 feather.replace();
             } catch (error) {
                 console.error('Error cargando reporte general:', error);
-                alert('Error al cargar reporte general');
+                showToast('Error al cargar reporte general', 'error');
             }
         }
 
@@ -2604,7 +2714,7 @@
                 feather.replace();
             } catch (error) {
                 console.error('Error cargando reporte de seguridad:', error);
-                alert('Error al cargar reporte de seguridad');
+                showToast('Error al cargar reporte de seguridad', 'error');
             }
         }
 
@@ -2670,25 +2780,28 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert(`Workspace: ${workspaceId}\n\n` +
-                          `Archivos: ${data.totalFiles}\n` +
-                          `Tamaño: ${formatBytes(data.totalSize)}\n` +
-                          `Accesos: ${data.totalAccesses}\n` +
-                          `Usuarios: ${data.totalUsers}\n` +
-                          `Mensajes de chat: ${data.chatMessages}\n` +
-                          `Último acceso: ${new Date(data.lastAccess).toLocaleString('es-ES')}`);
+                    await showCustomAlert(
+                        `Archivos: ${data.totalFiles}\n` +
+                        `Tamaño: ${formatBytes(data.totalSize)}\n` +
+                        `Accesos: ${data.totalAccesses}\n` +
+                        `Usuarios: ${data.totalUsers}\n` +
+                        `Mensajes de chat: ${data.chatMessages}\n` +
+                        `Último acceso: ${new Date(data.lastAccess).toLocaleString('es-ES')}`,
+                        `Workspace: ${workspaceId}`,
+                        'info'
+                    );
                 } else {
-                    alert('Error al cargar reporte del workspace');
+                    showToast('Error al cargar reporte del workspace', 'error');
                 }
             } catch (error) {
                 console.error('Error cargando reporte de workspace:', error);
-                alert('Error al cargar reporte del workspace');
+                showToast('Error al cargar reporte del workspace', 'error');
             }
         }
 
         async function exportReport(format) {
             if (!currentReport) {
-                alert('Primero debes generar un reporte');
+                showToast('Primero debes generar un reporte', 'warning');
                 return;
             }
             
@@ -2715,11 +2828,11 @@
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
                 } else {
-                    alert('Error al exportar reporte');
+                    showToast('Error al exportar reporte', 'error');
                 }
             } catch (error) {
                 console.error('Error exportando reporte:', error);
-                alert('Error al exportar reporte');
+                showToast('Error al exportar reporte', 'error');
             }
         }
 
@@ -2747,8 +2860,8 @@
                 // Actualizar estadísticas del tab de Tickets
                 updateTicketsStats();
                 
-                // Generar y mostrar gráfica de accesos por hora
-                generateAccessByHourChart();
+                // Generar y mostrar gráfica de accesos por hora desde AccessLog
+                await generateAccessByHourChart();
                 
                 // Generar y mostrar top workspaces
                 generateTopWorkspaces();
@@ -2762,35 +2875,20 @@
             }
         }
 
-        function generateAccessByHourChart() {
-            const accessByHour = {};
-            
-            // Inicializar todas las horas en 0
-            for (let i = 0; i < 24; i++) {
-                accessByHour[i.toString().padStart(2, '0')] = 0;
+        async function generateAccessByHourChart() {
+            try {
+                const response = await fetch('/api/admin/stats/access-by-hour');
+                const accessByHour = await response.json();
+                renderAccessByHourChart(accessByHour);
+            } catch (error) {
+                console.error('Error cargando accesos por hora:', error);
+                // Mostrar gráfico vacío
+                const accessByHour = {};
+                for (let i = 0; i < 24; i++) {
+                    accessByHour[i.toString().padStart(2, '0')] = 0;
+                }
+                renderAccessByHourChart(accessByHour);
             }
-            
-            // Contar tickets por hora de creación
-            allTickets.forEach(ticket => {
-                if (ticket.createdAt) {
-                    const date = new Date(ticket.createdAt);
-                    const hour = date.getHours().toString().padStart(2, '0');
-                    accessByHour[hour] = (accessByHour[hour] || 0) + 1;
-                }
-                
-                // También contar respuestas por hora
-                if (ticket.responses && ticket.responses.length > 0) {
-                    ticket.responses.forEach(response => {
-                        if (response.timestamp) {
-                            const date = new Date(response.timestamp);
-                            const hour = date.getHours().toString().padStart(2, '0');
-                            accessByHour[hour] = (accessByHour[hour] || 0) + 1;
-                        }
-                    });
-                }
-            });
-            
-            renderAccessByHourChart(accessByHour);
         }
 
         function generateTopWorkspaces() {
@@ -3147,7 +3245,7 @@
         }
 
         async function deleteTicket(ticketId) {
-            if (!confirm('¿Estás seguro de eliminar este ticket?')) return;
+            if (!await showCustomConfirm('¿Estás seguro de eliminar este ticket?', 'Eliminar ticket', 'Eliminar', 'Cancelar')) return;
             
             try {
                 const response = await fetch(`/api/tickets/${ticketId}`, {
@@ -3438,8 +3536,8 @@
             }
         }
 
-        function confirmDeleteModerator(email) {
-            if (!confirm(`¿Estás seguro de que quieres eliminar al moderador "${email}"?`)) {
+        async function confirmDeleteModerator(email) {
+            if (!await showCustomConfirm(`¿Estás seguro de que quieres eliminar al moderador "${email}"?`, 'Eliminar moderador', 'Eliminar', 'Cancelar')) {
                 return;
             }
             deleteModerator(email);

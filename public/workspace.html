@@ -1565,6 +1565,55 @@
         .chat-input-container {
             display: flex;
             gap: 8px;
+            position: relative;
+        }
+
+        .chat-commands-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .chat-commands-menu.visible {
+            display: block;
+        }
+
+        .command-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .command-item:last-child {
+            border-bottom: none;
+        }
+
+        .command-item:hover,
+        .command-item.selected {
+            background: #37373d;
+        }
+
+        .command-name {
+            color: #4ec9b0;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 2px;
+        }
+
+        .command-description {
+            color: #858585;
+            font-size: 0.8em;
         }
 
         .chat-input-container input {
@@ -1789,8 +1838,8 @@
                     <i data-feather="life-buoy" style="width: 20px; height: 20px;"></i>
                     <span class="badge" id="ticketsBadge" style="display: none;">0</span>
                 </div>
-                <div class="activity-bar-item" style="margin-top: auto; margin-bottom: 10px;" onclick="toggleSidebar()" title="Ocultar barra lateral (Ctrl+B)">
-                    <i data-feather="sidebar" style="width: 20px; height: 20px;"></i>
+                <div class="activity-bar-item" style="margin-top: auto; margin-bottom: 10px;" onclick="handleUserButtonClick()" title="Acceder" id="userButton">
+                    <i data-feather="log-in" style="width: 20px; height: 20px;" id="userButtonIcon"></i>
                 </div>
             </div>
 
@@ -1839,7 +1888,8 @@
                         </div>
                         <div class="chat-messages" id="chatMessages"></div>
                         <div class="chat-input-container">
-                            <input type="text" id="chatInput" placeholder="Escribe un mensaje..." maxlength="500">
+                            <div class="chat-commands-menu" id="chatCommandsMenu"></div>
+                            <input type="text" id="chatInput" placeholder="Escribe un mensaje o usa / para comandos..." maxlength="500">
                             <button onclick="sendMessage()">
                                 <i data-feather="send" style="width: 14px; height: 14px;"></i>
                             </button>
@@ -2168,6 +2218,43 @@
             <div class="modal-footer">
                 <button class="btn" onclick="closeUnlockModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="confirmUnlock()">Abrir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal personalizado para alertas y confirmaciones -->
+    <div class="modal" id="customAlertModal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 id="customAlertTitle" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="alert-circle" id="customAlertIcon" style="width: 20px; height: 20px;"></i>
+                    <span id="customAlertTitleText">Mensaje</span>
+                </h3>
+                <button class="modal-close" onclick="closeCustomAlert()">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="customAlertMessage" style="color: #d4d4d4; line-height: 1.6; white-space: pre-wrap;"></p>
+            </div>
+            <div class="modal-footer" id="customAlertFooter">
+                <button class="btn" onclick="closeCustomAlert()" id="customAlertOkBtn">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para input de texto (prompt) -->
+    <div class="modal" id="customPromptModal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 id="customPromptTitle">Ingresa un valor</h3>
+                <button class="modal-close" onclick="closeCustomPrompt(null)">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="customPromptMessage" style="margin-bottom: 15px; color: #d4d4d4;"></p>
+                <input type="text" id="customPromptInput" class="modal-input" style="width: 100%;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeCustomPrompt(null)">Cancelar</button>
+                <button class="btn btn-primary" onclick="closeCustomPrompt(document.getElementById('customPromptInput').value)">Aceptar</button>
             </div>
         </div>
     </div>

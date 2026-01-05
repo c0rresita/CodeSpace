@@ -18,6 +18,7 @@ export interface Workspace {
     uniqueUsers: Set<string>;
     sessionSockets: Map<string, Set<string>>;
     connectedUsers?: Map<string, string>;
+    vanishedUsers?: Set<string>;
     lastAccess?: number;
 }
 

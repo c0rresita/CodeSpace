@@ -114,10 +114,13 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             
             workspace.connectedUsers.set(socket.id, username);
             
-            const usersList = Array.from(workspace.connectedUsers.entries()).map(([id, name]) => ({
-                id,
-                username: name
-            }));
+            // Filtrar usuarios en modo vanish
+            const usersList = Array.from(workspace.connectedUsers.entries())
+                .filter(([id]) => !workspace.vanishedUsers || !workspace.vanishedUsers.has(id))
+                .map(([id, name]) => ({
+                    id,
+                    username: name
+                }));
             
             io.to(workspaceId).emit('users-list', usersList);
             
@@ -136,18 +139,179 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             
             workspace.connectedUsers.set(socket.id, newUsername);
             
-            io.to(workspaceId).emit('username-changed', {
-                id: socket.id,
-                oldUsername,
-                newUsername
-            });
-            
-            const usersList = Array.from(workspace.connectedUsers.entries()).map(([id, name]) => ({
-                id,
-                username: name
-            }));
+            // Actualizar lista de usuarios solo (sin notificar el cambio de nombre) y filtrar vanished
+            const usersList = Array.from(workspace.connectedUsers.entries())
+                .filter(([id]) => !workspace.vanishedUsers || !workspace.vanishedUsers.has(id))
+                .map(([id, name]) => ({
+                    id,
+                    username: name
+                }));
             
             io.to(workspaceId).emit('users-list', usersList);
+        });
+
+        // Ping-pong para medir latencia
+        socket.on('ping', ({ workspaceId, timestamp }) => {
+            socket.emit('pong', { timestamp });
+        });
+
+        // Kick user
+        socket.on('kick-user', ({ workspaceId, kickedBy, targetUser, message }) => {
+            if (!workspaces.has(workspaceId)) return;
+            
+            const workspace = workspaces.get(workspaceId)!;
+            if (!workspace.connectedUsers) return;
+            
+            // Buscar el socketId del usuario a expulsar
+            let targetSocketId: string | null = null;
+            for (const [socketId, username] of workspace.connectedUsers.entries()) {
+                if (username === targetUser) {
+                    targetSocketId = socketId;
+                    break;
+                }
+            }
+            
+            if (!targetSocketId) return;
+            
+            // Notificar al usuario expulsado
+            io.to(targetSocketId).emit('kicked', {
+                message: `${message}`
+            });
+            
+            // Notificar a todos los demás usuarios
+            socket.to(workspaceId).emit('user-kicked', {
+                kickedBy,
+                targetUser,
+                message
+            });
+            
+            // Desconectar al usuario después de 2 segundos
+            setTimeout(() => {
+                const targetSocket = io.sockets.sockets.get(targetSocketId!);
+                if (targetSocket) {
+                    targetSocket.disconnect(true);
+                }
+            }, 2000);
+        });
+
+        // Ban user (solo admin/moderador)
+        socket.on('ban-user', async ({ workspaceId, bannedBy, targetUser, reason }) => {
+            if (!workspaces.has(workspaceId)) return;
+            
+            const workspace = workspaces.get(workspaceId)!;
+            if (!workspace.connectedUsers) return;
+            
+            // Buscar el socketId del usuario a banear
+            let targetSocketId: string | null = null;
+            for (const [socketId, username] of workspace.connectedUsers.entries()) {
+                if (username === targetUser) {
+                    targetSocketId = socketId;
+                    break;
+                }
+            }
+            
+            if (!targetSocketId) return;
+            
+            // Obtener la IP del usuario
+            const targetSocket = io.sockets.sockets.get(targetSocketId);
+            if (!targetSocket) return;
+            
+            const targetIP = targetSocket.handshake.headers['x-forwarded-for'] as string || targetSocket.handshake.address;
+            
+            // Bloquear la IP
+            await logService.blockIP(targetIP, reason, bannedBy);
+            
+            // Notificar al usuario baneado
+            io.to(targetSocketId).emit('kicked', {
+                message: `Has sido baneado. Razón: ${reason}`
+            });
+            
+            // Notificar a todos los demás usuarios
+            io.to(workspaceId).emit('chat-system', {
+                message: `🔨 ${bannedBy} baneó a ${targetUser}. Razón: ${reason}`
+            });
+            
+            // Desconectar al usuario después de 2 segundos
+            setTimeout(() => {
+                if (targetSocket) {
+                    targetSocket.disconnect(true);
+                }
+            }, 2000);
+        });
+
+        // Toggle modo vanish (solo admin/moderador)
+        socket.on('toggle-vanish', ({ workspaceId, username }) => {
+            if (!workspaces.has(workspaceId)) return;
+            
+            // Verificar permisos de admin/moderador
+            const session = (socket.request as any).session;
+            if (!session?.isAdmin && !session?.isModerator) {
+                socket.emit('vanish-error', { message: 'Solo administradores y moderadores pueden usar este comando' });
+                return;
+            }
+            
+            const workspace = workspaces.get(workspaceId)!;
+            
+            // Inicializar el Set de usuarios en vanish si no existe
+            if (!workspace.vanishedUsers) {
+                workspace.vanishedUsers = new Set<string>();
+            }
+            
+            const isVanished = workspace.vanishedUsers.has(socket.id);
+            
+            if (isVanished) {
+                // Desactivar vanish
+                workspace.vanishedUsers.delete(socket.id);
+                socket.emit('vanish-toggled', { enabled: false });
+            } else {
+                // Activar vanish
+                workspace.vanishedUsers.add(socket.id);
+                socket.emit('vanish-toggled', { enabled: true });
+            }
+            
+            // Emitir lista actualizada de usuarios a todos (excluyendo vanished)
+            const usersList = Array.from(workspace.connectedUsers?.entries() || [])
+                .filter(([id]) => !workspace.vanishedUsers || !workspace.vanishedUsers.has(id))
+                .map(([id, name]) => ({
+                    id,
+                    username: name
+                }));
+            
+            io.to(workspaceId).emit('users-list', usersList);
+        });
+
+        // Desbanear IP (solo admin/moderador)
+        socket.on('unban-ip', async ({ workspaceId, unbannedBy, ipAddress }) => {
+            if (!workspaces.has(workspaceId)) return;
+            
+            // Verificar permisos de admin/moderador
+            const session = (socket.request as any).session;
+            if (!session?.isAdmin && !session?.isModerator) {
+                socket.emit('unban-error', { message: 'Solo administradores y moderadores pueden desbanear IPs' });
+                return;
+            }
+            
+            try {
+                // Desbloquear la IP
+                await logService.unblockIP(ipAddress);
+                
+                // Notificar éxito al usuario que ejecutó el comando
+                socket.emit('unban-success', { 
+                    message: `IP ${ipAddress} desbaneada correctamente`,
+                    ipAddress,
+                    unbannedBy
+                });
+                
+                // Notificar a todos en el workspace
+                io.to(workspaceId).emit('chat-system', {
+                    message: `🔓 ${unbannedBy} desbaneó la IP: ${ipAddress}`
+                });
+                
+                console.log(`🔓 IP desbaneada: ${ipAddress} por ${unbannedBy}`);
+            } catch (error) {
+                console.error('Error al desbanear IP:', error);
+                socket.emit('unban-error', { message: 'Error al desbanear la IP' });
+            }
         });
 
         // Mensaje de chat
@@ -531,15 +695,22 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                     const username = workspace.connectedUsers.get(socket.id);
                     workspace.connectedUsers.delete(socket.id);
                     
+                    // Limpiar de vanished users si estaba ahí
+                    if (workspace.vanishedUsers) {
+                        workspace.vanishedUsers.delete(socket.id);
+                    }
+                    
                     socket.to(currentWorkspace).emit('user-left', {
                         id: socket.id,
                         username
                     });
                     
-                    const usersList = Array.from(workspace.connectedUsers.entries()).map(([id, name]) => ({
-                        id,
-                        username: name
-                    }));
+                    const usersList = Array.from(workspace.connectedUsers.entries())
+                        .filter(([id]) => !workspace.vanishedUsers || !workspace.vanishedUsers.has(id))
+                        .map(([id, name]) => ({
+                            id,
+                            username: name
+                        }));
                     
                     io.to(currentWorkspace).emit('users-list', usersList);
                 }

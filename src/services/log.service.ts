@@ -1,6 +1,32 @@
 import AccessLog from '../models/AccessLog';
 import BlockedIP from '../models/BlockedIP';
 import { isDatabaseConnected } from '../database/connection';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+// Archivo JSON para guardar IPs bloqueadas cuando no hay MongoDB
+const BLOCKED_IPS_FILE = path.join(process.cwd(), 'workspaces-data', 'blocked-ips.json');
+
+// Funciones auxiliares para gestionar IPs bloqueadas en JSON
+async function loadBlockedIPsFromFile(): Promise<any[]> {
+    try {
+        await fs.mkdir(path.dirname(BLOCKED_IPS_FILE), { recursive: true });
+        const data = await fs.readFile(BLOCKED_IPS_FILE, 'utf-8');
+        return JSON.parse(data);
+    } catch (error) {
+        // Si el archivo no existe, devolver array vacío
+        return [];
+    }
+}
+
+async function saveBlockedIPsToFile(blockedIPs: any[]): Promise<void> {
+    try {
+        await fs.mkdir(path.dirname(BLOCKED_IPS_FILE), { recursive: true });
+        await fs.writeFile(BLOCKED_IPS_FILE, JSON.stringify(blockedIPs, null, 2), 'utf-8');
+    } catch (error) {
+        console.error('Error guardando IPs bloqueadas:', error);
+    }
+}
 
 // Registrar acceso
 export async function logAccess(data: {
@@ -29,66 +55,116 @@ export async function logAccess(data: {
 
 // Verificar si una IP está bloqueada
 export async function isIPBlocked(ip: string): Promise<boolean> {
-    if (!isDatabaseConnected()) return false;
-    
-    try {
-        const blocked = await BlockedIP.findOne({
-            ip,
-            $or: [
-                { permanent: true },
-                { expiresAt: { $gt: new Date() } }
-            ]
-        });
-        
-        return !!blocked;
-    } catch (error) {
-        console.error('Error verificando IP bloqueada:', error);
-        return false;
+    if (isDatabaseConnected()) {
+        try {
+            const blocked = await BlockedIP.findOne({
+                ip,
+                $or: [
+                    { permanent: true },
+                    { expiresAt: { $gt: new Date() } }
+                ]
+            });
+            
+            return !!blocked;
+        } catch (error) {
+            console.error('Error verificando IP bloqueada:', error);
+            return false;
+        }
+    } else {
+        // Usar archivo JSON como fallback
+        try {
+            const blockedIPs = await loadBlockedIPsFromFile();
+            const now = new Date();
+            
+            const blocked = blockedIPs.find(item => 
+                item.ip === ip && 
+                (item.permanent || (item.expiresAt && new Date(item.expiresAt) > now))
+            );
+            
+            return !!blocked;
+        } catch (error) {
+            console.error('Error verificando IP bloqueada desde archivo:', error);
+            return false;
+        }
     }
 }
 
 // Bloquear IP
 export async function blockIP(ip: string, reason: string, blockedBy: string, duration?: number): Promise<void> {
-    if (!isDatabaseConnected()) {
-        console.warn('MongoDB no conectado. No se puede bloquear IP.');
-        return;
-    }
-    
-    try {
-        const expiresAt = duration ? new Date(Date.now() + duration * 1000) : undefined;
-        
-        await BlockedIP.findOneAndUpdate(
-            { ip },
-            {
+    if (isDatabaseConnected()) {
+        try {
+            const expiresAt = duration ? new Date(Date.now() + duration * 1000) : undefined;
+            
+            await BlockedIP.findOneAndUpdate(
+                { ip },
+                {
+                    ip,
+                    reason,
+                    blockedBy,
+                    blockedAt: new Date(),
+                    expiresAt,
+                    permanent: !duration,
+                    $inc: { attempts: 1 }
+                },
+                { upsert: true }
+            );
+            
+            console.log(`IP bloqueada: ${ip} - Razón: ${reason}`);
+        } catch (error) {
+            console.error('Error bloqueando IP:', error);
+        }
+    } else {
+        // Usar archivo JSON como fallback
+        try {
+            const blockedIPs = await loadBlockedIPsFromFile();
+            const expiresAt = duration ? new Date(Date.now() + duration * 1000) : undefined;
+            
+            // Buscar si ya existe
+            const existingIndex = blockedIPs.findIndex(item => item.ip === ip);
+            
+            const blockedIPData = {
                 ip,
                 reason,
                 blockedBy,
-                blockedAt: new Date(),
-                expiresAt,
+                blockedAt: new Date().toISOString(),
+                expiresAt: expiresAt?.toISOString(),
                 permanent: !duration,
-                $inc: { attempts: 1 }
-            },
-            { upsert: true }
-        );
-        
-        console.log(`IP bloqueada: ${ip} - Razón: ${reason}`);
-    } catch (error) {
-        console.error('Error bloqueando IP:', error);
+                attempts: existingIndex >= 0 ? blockedIPs[existingIndex].attempts + 1 : 1
+            };
+            
+            if (existingIndex >= 0) {
+                blockedIPs[existingIndex] = blockedIPData;
+            } else {
+                blockedIPs.push(blockedIPData);
+            }
+            
+            await saveBlockedIPsToFile(blockedIPs);
+            console.log(`IP bloqueada (JSON): ${ip} - Razón: ${reason}`);
+        } catch (error) {
+            console.error('Error bloqueando IP en archivo:', error);
+        }
     }
 }
 
 // Desbloquear IP
 export async function unblockIP(ip: string): Promise<void> {
-    if (!isDatabaseConnected()) {
-        console.warn('MongoDB no conectado. No se puede desbloquear IP.');
-        return;
-    }
-    
-    try {
-        await BlockedIP.deleteOne({ ip });
-        console.log(`IP desbloqueada: ${ip}`);
-    } catch (error) {
-        console.error('Error desbloqueando IP:', error);
+    if (isDatabaseConnected()) {
+        try {
+            await BlockedIP.deleteOne({ ip });
+            console.log(`IP desbloqueada: ${ip}`);
+        } catch (error) {
+            console.error('Error desbloqueando IP:', error);
+        }
+    } else {
+        // Usar archivo JSON como fallback
+        try {
+            const blockedIPs = await loadBlockedIPsFromFile();
+            const filteredIPs = blockedIPs.filter(item => item.ip !== ip);
+            await saveBlockedIPsToFile(filteredIPs);
+            console.log(`IP desbloqueada (JSON): ${ip}`);
+        } catch (error) {
+            console.error('Error desbloqueando IP en archivo:', error);
+        }
     }
 }
 
@@ -184,17 +260,34 @@ export async function getRecentActivity(limit: number = 50) {
 
 // Obtener IPs bloqueadas
 export async function getBlockedIPs() {
-    if (!isDatabaseConnected()) return [];
-    
-    try {
-        const blocked = await BlockedIP.find()
-            .sort({ blockedAt: -1 })
-            .lean();
-        
-        return blocked;
-    } catch (error) {
-        console.error('Error obteniendo IPs bloqueadas:', error);
-        return [];
+    if (isDatabaseConnected()) {
+        try {
+            const blocked = await BlockedIP.find()
+                .sort({ blockedAt: -1 })
+                .lean();
+            
+            return blocked;
+        } catch (error) {
+            console.error('Error obteniendo IPs bloqueadas:', error);
+            return [];
+        }
+    } else {
+        // Usar archivo JSON como fallback
+        try {
+            const blockedIPs = await loadBlockedIPsFromFile();
+            // Filtrar las que han expirado
+            const now = new Date();
+            const activeBlocked = blockedIPs.filter(item => 
+                item.permanent || (item.expiresAt && new Date(item.expiresAt) > now)
+            );
+            // Ordenar por fecha de bloqueo (más recientes primero)
+            return activeBlocked.sort((a, b) => 
+                new Date(b.blockedAt).getTime() - new Date(a.blockedAt).getTime()
+            );
+        } catch (error) {
+            console.error('Error obteniendo IPs bloqueadas desde archivo:', error);
+            return [];
+        }
     }
 }
 
@@ -243,5 +336,46 @@ export async function getWorkspaceLogs(workspaceId: string) {
     } catch (error) {
         console.error('Error obteniendo logs del workspace:', error);
         return [];
+    }
+}
+
+// Obtener accesos por hora (últimas 24 horas)
+export async function getAccessByHour() {
+    if (!isDatabaseConnected()) {
+        // Inicializar con 0s si no hay base de datos
+        const accessByHour: { [hour: string]: number } = {};
+        for (let i = 0; i < 24; i++) {
+            accessByHour[i.toString().padStart(2, '0')] = 0;
+        }
+        return accessByHour;
+    }
+    
+    try {
+        const logs = await AccessLog.find({
+            action: { $in: ['join', 'password_attempt'] } // Solo contar conexiones
+        })
+        .sort({ timestamp: -1 })
+        .lean();
+        
+        // Inicializar todas las horas en 0
+        const accessByHour: { [hour: string]: number } = {};
+        for (let i = 0; i < 24; i++) {
+            accessByHour[i.toString().padStart(2, '0')] = 0;
+        }
+        
+        // Contar accesos por hora
+        logs.forEach(log => {
+            const hour = new Date(log.timestamp).getHours().toString().padStart(2, '0');
+            accessByHour[hour]++;
+        });
+        
+        return accessByHour;
+    } catch (error) {
+        console.error('Error obteniendo accesos por hora:', error);
+        const accessByHour: { [hour: string]: number } = {};
+        for (let i = 0; i < 24; i++) {
+            accessByHour[i.toString().padStart(2, '0')] = 0;
+        }
+        return accessByHour;
     }
 }

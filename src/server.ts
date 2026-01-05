@@ -46,8 +46,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public', 'index.html'));
 });
 
-app.get('/accesoadministracion', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public', 'accesoadministracion.html'));
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public', 'login.html'));
 });
 
 app.get('/admin', (req, res) => {
@@ -91,7 +91,7 @@ async function startServer() {
         server.listen(config.port, () => {
             console.log(`\n🚀 CodeSpace Server`);
             console.log(`📍 http://localhost:${config.port}`);
-            console.log(`🔐 Admin: /accesoadministracion usr: admin@admin.com pass:admin123`);
+            console.log(`🔐 Admin: /login usr: admin@admin.com pass:admin123`);
             console.log(`⏳ Expiración: ${config.workspaceExpiryDays} días\n`);
         });
     }

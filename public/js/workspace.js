@@ -14,6 +14,98 @@ const toast = document.getElementById('toast');
 const contextMenu = document.getElementById('contextMenu');
 const githubModal = document.getElementById('githubModal');
 
+// ===== SISTEMA DE MODALES PERSONALIZADOS =====
+
+let customAlertCallback = null;
+let customPromptCallback = null;
+
+function showCustomAlert(message, title = 'Mensaje', icon = 'alert-circle') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customAlertModal');
+        const titleText = document.getElementById('customAlertTitleText');
+        const iconElement = document.getElementById('customAlertIcon');
+        const messageElement = document.getElementById('customAlertMessage');
+        const footer = document.getElementById('customAlertFooter');
+        
+        titleText.textContent = title;
+        iconElement.setAttribute('data-feather', icon);
+        messageElement.textContent = message;
+        
+        footer.innerHTML = '<button class="btn" onclick="closeCustomAlert(true)">Aceptar</button>';
+        
+        customAlertCallback = resolve;
+        modal.style.display = 'flex';
+        feather.replace();
+    });
+}
+
+function showCustomConfirm(message, title = 'Confirmar', confirmText = 'Confirmar', cancelText = 'Cancelar') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customAlertModal');
+        const titleText = document.getElementById('customAlertTitleText');
+        const iconElement = document.getElementById('customAlertIcon');
+        const messageElement = document.getElementById('customAlertMessage');
+        const footer = document.getElementById('customAlertFooter');
+        
+        titleText.textContent = title;
+        iconElement.setAttribute('data-feather', 'help-circle');
+        messageElement.textContent = message;
+        
+        footer.innerHTML = `
+            <button class="btn" onclick="closeCustomAlert(false)">${cancelText}</button>
+            <button class="btn btn-primary" onclick="closeCustomAlert(true)">${confirmText}</button>
+        `;
+        
+        customAlertCallback = resolve;
+        modal.style.display = 'flex';
+        feather.replace();
+    });
+}
+
+function closeCustomAlert(result = false) {
+    const modal = document.getElementById('customAlertModal');
+    modal.style.display = 'none';
+    if (customAlertCallback) {
+        customAlertCallback(result);
+        customAlertCallback = null;
+    }
+}
+
+function showCustomPrompt(message, title = 'Ingresa un valor', defaultValue = '') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customPromptModal');
+        const titleElement = document.getElementById('customPromptTitle');
+        const messageElement = document.getElementById('customPromptMessage');
+        const inputElement = document.getElementById('customPromptInput');
+        
+        titleElement.textContent = title;
+        messageElement.textContent = message;
+        inputElement.value = defaultValue;
+        
+        customPromptCallback = resolve;
+        modal.style.display = 'flex';
+        setTimeout(() => inputElement.focus(), 100);
+        
+        // Enter para confirmar
+        inputElement.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                closeCustomPrompt(inputElement.value);
+            } else if (e.key === 'Escape') {
+                closeCustomPrompt(null);
+            }
+        };
+    });
+}
+
+function closeCustomPrompt(result) {
+    const modal = document.getElementById('customPromptModal');
+    modal.style.display = 'none';
+    if (customPromptCallback) {
+        customPromptCallback(result);
+        customPromptCallback = null;
+    }
+}
+
 // ===== FUNCIONES DE LA BARRA DE TÍTULO =====
 
 // Actualizar reloj y fecha
@@ -43,8 +135,8 @@ setInterval(updateClock, 1000);
 updateClock(); // Llamar inmediatamente
 
 // Botón rojo: ir a home
-function goToHome() {
-    if (confirm('¿Quieres salir del workspace y volver a la página principal?')) {
+async function goToHome() {
+    if (await showCustomConfirm('¿Quieres salir del workspace y volver a la página principal?', 'Salir del workspace', 'Salir', 'Cancelar')) {
         window.location.href = '/';
     }
 }
@@ -115,9 +207,59 @@ function loadSavedTheme() {
     if (typeof feather !== 'undefined') feather.replace();
 }
 
+// Actualizar icono del botón de usuario según estado de sesión
+function updateUserButtonIcon(hasSession, userData = null) {
+    const userButton = document.getElementById('userButton');
+    const userButtonIcon = document.getElementById('userButtonIcon');
+    
+    if (!userButton || !userButtonIcon) return;
+    
+    if (hasSession) {
+        // Usuario con sesión - mostrar icono de usuario
+        userButtonIcon.setAttribute('data-feather', 'user');
+        userButton.setAttribute('title', `Usuario: ${userData?.email || 'Admin'}`);
+    } else {
+        // Usuario sin sesión - mostrar icono de login
+        userButtonIcon.setAttribute('data-feather', 'log-in');
+        userButton.setAttribute('title', 'Iniciar sesión');
+    }
+    
+    feather.replace();
+}
+
+// Manejar clic en botón de usuario/login
+function handleUserButtonClick() {
+    if (isAdminOrModerator) {
+        // Usuario con sesión - redirigir al panel de admin
+        window.open('/admin', '_blank');
+    } else {
+        // Usuario sin sesión - redirigir a login
+        window.open('/login', '_blank');
+    }
+}
+
 // Cargar tema al iniciar
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedTheme();
+    
+    // Verificar si el usuario es admin o moderador
+    fetch('/api/admin/user-info')
+        .then(res => res.json())
+        .then(data => {
+            if (data.isAdmin || data.isModerator) {
+                isAdminOrModerator = true;
+                // Actualizar icono a usuario
+                updateUserButtonIcon(true, data);
+            } else {
+                // Usuario no tiene sesión
+                updateUserButtonIcon(false);
+            }
+        })
+        .catch(() => {
+            isAdminOrModerator = false;
+            // Usuario no tiene sesión
+            updateUserButtonIcon(false);
+        });
     
     // Cargar nombre del chat guardado
     const savedChatName = localStorage.getItem(`chatName_${workspaceId}`);
@@ -650,6 +792,239 @@ function setUsername() {
     input.value = username;
 }
 
+// Comandos disponibles
+const chatCommands = [
+    {
+        command: '/name',
+        description: 'Cambia tu nombre de usuario (máx 10 letras)',
+        usage: '/name tunombre',
+        adminOnly: false
+    },
+    {
+        command: '/ping',
+        description: 'Muestra tu latencia con el servidor',
+        usage: '/ping',
+        adminOnly: false
+    },
+    {
+        command: '/clear',
+        description: 'Limpia tu historial de chat (solo visual)',
+        usage: '/clear',
+        adminOnly: false
+    },
+    {
+        command: '/kick',
+        description: 'Expulsa un usuario del workspace',
+        usage: '/kick usuario [mensaje opcional]',
+        adminOnly: true
+    },
+    {
+        command: '/ban',
+        description: 'Banea la IP de un usuario permanentemente',
+        usage: '/ban usuario [razón opcional]',
+        adminOnly: true
+    },
+    {
+        command: '/unban',
+        description: 'Desbanea una dirección IP',
+        usage: '/unban dirección_ip',
+        adminOnly: true
+    },
+    {
+        command: '/vanish',
+        description: 'Oculta tu presencia en la lista de usuarios',
+        usage: '/vanish',
+        adminOnly: true
+    }
+];
+
+let isAdminOrModerator = false;
+
+let pingStartTime = null;
+
+let selectedCommandIndex = -1;
+
+// Mostrar menú de comandos
+function showCommandsMenu() {
+    const menu = document.getElementById('chatCommandsMenu');
+    const input = document.getElementById('chatInput');
+    const value = input.value.toLowerCase();
+    
+    if (!value.startsWith('/')) {
+        menu.classList.remove('visible');
+        selectedCommandIndex = -1;
+        return;
+    }
+    
+    // Autocompletado de usuarios para /kick
+    if (value.startsWith('/kick ')) {
+        const args = value.substring(6).split(' ');
+        const userQuery = args[0] || '';
+        
+        // Si ya hay un usuario completo y estamos escribiendo el mensaje, no mostrar menú
+        if (args.length > 1 && Array.from(onlineUsers.values()).includes(args[0])) {
+            menu.classList.remove('visible');
+            selectedCommandIndex = -1;
+            return;
+        }
+        
+        // Filtrar usuarios conectados
+        const users = Array.from(onlineUsers.values()).filter(u => 
+            u.toLowerCase().includes(userQuery.toLowerCase()) && u !== username
+        );
+        
+        if (users.length === 0) {
+            menu.classList.remove('visible');
+            selectedCommandIndex = -1;
+            return;
+        }
+        
+        // Mostrar usuarios disponibles
+        menu.innerHTML = users.map((user, index) => `
+            <div class="command-item ${index === selectedCommandIndex ? 'selected' : ''}" 
+                 onclick="selectUserForKick('${user}')" 
+                 data-index="${index}">
+                <div class="command-name">@${user}</div>
+                <div class="command-description">Expulsar usuario</div>
+            </div>
+        `).join('');
+        
+        menu.classList.add('visible');
+        return;
+    }
+    
+    // Autocompletado de usuarios para /ban
+    if (value.startsWith('/ban ')) {
+        const args = value.substring(5).split(' ');
+        const userQuery = args[0] || '';
+        
+        // Si ya hay un usuario completo y estamos escribiendo la razón, no mostrar menú
+        if (args.length > 1 && Array.from(onlineUsers.values()).includes(args[0])) {
+            menu.classList.remove('visible');
+            selectedCommandIndex = -1;
+            return;
+        }
+        
+        // Filtrar usuarios conectados
+        const users = Array.from(onlineUsers.values()).filter(u => 
+            u.toLowerCase().includes(userQuery.toLowerCase()) && u !== username
+        );
+        
+        if (users.length === 0) {
+            menu.classList.remove('visible');
+            selectedCommandIndex = -1;
+            return;
+        }
+        
+        // Mostrar usuarios disponibles
+        menu.innerHTML = users.map((user, index) => `
+            <div class="command-item ${index === selectedCommandIndex ? 'selected' : ''}" 
+                 onclick="selectUserForBan('${user}')" 
+                 data-index="${index}">
+                <div class="command-name">@${user}</div>
+                <div class="command-description">Banear IP del usuario ${isAdminOrModerator ? '(Admin)' : '(Requiere permisos)'}</div>
+            </div>
+        `).join('');
+        
+        menu.classList.add('visible');
+        return;
+    }
+    
+    // Filtrar comandos según permisos y búsqueda
+    const query = value.substring(1).split(' ')[0];
+    const filtered = chatCommands.filter(cmd => {
+        // Filtrar comandos solo de admin si el usuario no es admin
+        if (cmd.adminOnly && !isAdminOrModerator) {
+            return false;
+        }
+        return cmd.command.toLowerCase().includes(query) || 
+               cmd.description.toLowerCase().includes(query);
+    });
+    
+    if (filtered.length === 0) {
+        menu.classList.remove('visible');
+        selectedCommandIndex = -1;
+        return;
+    }
+    
+    // Renderizar comandos
+    menu.innerHTML = filtered.map((cmd, index) => `
+        <div class="command-item ${index === selectedCommandIndex ? 'selected' : ''}" 
+             onclick="selectCommand('${cmd.usage}')" 
+             data-index="${index}">
+            <div class="command-name">${cmd.command}</div>
+            <div class="command-description">${cmd.description}</div>
+        </div>
+    `).join('');
+    
+    menu.classList.add('visible');
+}
+
+// Seleccionar usuario para kick
+function selectUserForKick(user) {
+    const input = document.getElementById('chatInput');
+    input.value = `/kick ${user} `;
+    input.focus();
+    document.getElementById('chatCommandsMenu').classList.remove('visible');
+    selectedCommandIndex = -1;
+}
+
+// Seleccionar usuario para ban
+function selectUserForBan(user) {
+    const input = document.getElementById('chatInput');
+    input.value = `/ban ${user} `;
+    input.focus();
+    document.getElementById('chatCommandsMenu').classList.remove('visible');
+    selectedCommandIndex = -1;
+}
+
+// Seleccionar comando
+function selectCommand(usage) {
+    const input = document.getElementById('chatInput');
+    input.value = usage + ' ';
+    input.focus();
+    document.getElementById('chatCommandsMenu').classList.remove('visible');
+    selectedCommandIndex = -1;
+}
+
+// Navegar por comandos con teclado
+function navigateCommands(direction) {
+    const menu = document.getElementById('chatCommandsMenu');
+    if (!menu.classList.contains('visible')) return false;
+    
+    const items = menu.querySelectorAll('.command-item');
+    if (items.length === 0) return false;
+    
+    // Remover selección anterior
+    items.forEach(item => item.classList.remove('selected'));
+    
+    // Actualizar índice
+    if (direction === 'down') {
+        selectedCommandIndex = (selectedCommandIndex + 1) % items.length;
+    } else if (direction === 'up') {
+        selectedCommandIndex = selectedCommandIndex <= 0 ? items.length - 1 : selectedCommandIndex - 1;
+    }
+    
+    // Aplicar nueva selección
+    items[selectedCommandIndex].classList.add('selected');
+    items[selectedCommandIndex].scrollIntoView({ block: 'nearest' });
+    
+    return true;
+}
+
+// Confirmar selección con Enter
+function confirmCommandSelection() {
+    const menu = document.getElementById('chatCommandsMenu');
+    if (!menu.classList.contains('visible') || selectedCommandIndex === -1) return false;
+    
+    const selectedItem = menu.querySelector('.command-item.selected');
+    if (selectedItem) {
+        selectedItem.click();
+        return true;
+    }
+    return false;
+}
+
 function sendMessage() {
     if (!username || username.length === 0) {
         showToast('Primero debes establecer un nombre');
@@ -660,6 +1035,143 @@ function sendMessage() {
     const message = input.value.trim();
     
     if (message) {
+        // Detectar comando /clear
+        if (message === '/clear') {
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = '';
+            showToast('✨ Chat limpiado (solo para ti)', true);
+            input.value = '';
+            return;
+        }
+        
+        // Detectar comando /ping
+        if (message === '/ping') {
+            pingStartTime = Date.now();
+            socket.emit('ping', { workspaceId, timestamp: pingStartTime });
+            showToast('Midiendo latencia...');
+            input.value = '';
+            return;
+        }
+        
+        // Detectar comando /kick
+        if (message.startsWith('/kick ')) {
+            const args = message.substring(6).trim().split(' ');
+            const targetUser = args[0];
+            const kickMessage = args.slice(1).join(' ') || 'Has sido expulsado del workspace';
+            
+            if (!targetUser || targetUser.length === 0) {
+                showToast('Debes especificar un usuario: /kick usuario [mensaje]');
+                input.value = '';
+                return;
+            }
+            
+            // Verificar que el usuario existe
+            if (!Array.from(onlineUsers.values()).includes(targetUser)) {
+                showToast(`Usuario "${targetUser}" no encontrado`);
+                input.value = '';
+                return;
+            }
+            
+            // Enviar comando de kick al servidor
+            socket.emit('kick-user', {
+                workspaceId,
+                kickedBy: username,
+                targetUser,
+                message: kickMessage
+            });
+            
+            showToast(`Expulsando a ${targetUser}...`);
+            input.value = '';
+            return;
+        }
+        
+        // Detectar comando /ban
+        if (message.startsWith('/ban ')) {
+            if (!isAdminOrModerator) {
+                showToast('❌ Solo administradores y moderadores pueden usar /ban');
+                input.value = '';
+                return;
+            }
+            
+            const args = message.substring(5).trim().split(' ');
+            const targetUser = args[0];
+            const reason = args.slice(1).join(' ') || 'Comportamiento inapropiado';
+            
+            if (!targetUser || targetUser.length === 0) {
+                showToast('Debes especificar un usuario: /ban usuario [razón]');
+                input.value = '';
+                return;
+            }
+            
+            // Verificar que el usuario existe
+            if (!Array.from(onlineUsers.values()).includes(targetUser)) {
+                showToast(`Usuario "${targetUser}" no encontrado`);
+                input.value = '';
+                return;
+            }
+            
+            // Enviar comando de ban al servidor
+            socket.emit('ban-user', {
+                workspaceId,
+                bannedBy: username,
+                targetUser,
+                reason
+            });
+            
+            showToast(`🔨 Baneando a ${targetUser}...`);
+            input.value = '';
+            return;
+        }
+        
+        // Detectar comando /vanish
+        if (message === '/vanish') {
+            if (!isAdminOrModerator) {
+                showToast('❌ Solo administradores y moderadores pueden usar /vanish');
+                input.value = '';
+                return;
+            }
+            
+            // Alternar modo vanish
+            socket.emit('toggle-vanish', { workspaceId, username });
+            input.value = '';
+            return;
+        }
+        
+        // Detectar comando /unban
+        if (message.startsWith('/unban ')) {
+            if (!isAdminOrModerator) {
+                showToast('❌ Solo administradores y moderadores pueden usar /unban');
+                input.value = '';
+                return;
+            }
+            
+            const ipAddress = message.substring(7).trim();
+            
+            if (!ipAddress || ipAddress.length === 0) {
+                showToast('⚠️ Debes especificar una IP: /unban dirección_ip');
+                input.value = '';
+                return;
+            }
+            
+            // Validar formato de IP básico
+            if (!/^[\d.:a-f]+$/i.test(ipAddress)) {
+                showToast('⚠️ Formato de IP inválido');
+                input.value = '';
+                return;
+            }
+            
+            // Enviar comando de unban al servidor
+            socket.emit('unban-ip', {
+                workspaceId,
+                unbannedBy: username,
+                ipAddress
+            });
+            
+            showToast(`🔓 Desbaneando IP ${ipAddress}...`);
+            input.value = '';
+            return;
+        }
+        
         // Detectar comando /name
         if (message.startsWith('/name ')) {
             const newName = message.substring(6).trim();
@@ -786,6 +1298,12 @@ function updateUserList() {
         `;
         userList.appendChild(userItem);
     });
+    
+    // Actualizar contador de usuarios
+    const count = onlineUsers.size;
+    usersCountEl.textContent = count;
+    usersTextEl.textContent = count === 1 ? 'usuario' : 'usuarios';
+    updateUsersBadge(count);
 }
 
 function updateUsersBadge(count) {
@@ -863,9 +1381,76 @@ function escapeHtml(text) {
 }
 
 // Chat input enter key
-document.getElementById('chatInput').addEventListener('keypress', (e) => {
+// Event listeners para chat input
+const chatInputElement = document.getElementById('chatInput');
+
+// Detectar cuando se escribe para mostrar comandos
+chatInputElement.addEventListener('input', () => {
+    showCommandsMenu();
+});
+
+// Navegación con teclado
+chatInputElement.addEventListener('keydown', (e) => {
+    const menu = document.getElementById('chatCommandsMenu');
+    const input = chatInputElement.value;
+    
+    // Autocompletar con Tab cuando se escribe parcialmente un comando
+    if (e.key === 'Tab' && input.startsWith('/') && !menu.classList.contains('visible')) {
+        e.preventDefault();
+        
+        const query = input.toLowerCase();
+        const matches = chatCommands.filter(cmd => 
+            cmd.command.toLowerCase().startsWith(query)
+        );
+        
+        if (matches.length === 1) {
+            chatInputElement.value = matches[0].usage + ' ';
+            return;
+        }
+    }
+    
+    if (menu.classList.contains('visible')) {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            navigateCommands('down');
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            navigateCommands('up');
+            return;
+        }
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            if (confirmCommandSelection()) return;
+        }
+        if (e.key === 'Escape') {
+            menu.classList.remove('visible');
+            selectedCommandIndex = -1;
+            return;
+        }
+    }
+});
+
+chatInputElement.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        sendMessage();
+        const menu = document.getElementById('chatCommandsMenu');
+        if (menu.classList.contains('visible') && selectedCommandIndex !== -1) {
+            e.preventDefault();
+            confirmCommandSelection();
+        } else {
+            sendMessage();
+        }
+    }
+});
+
+// Cerrar menú al hacer clic fuera
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('chatCommandsMenu');
+    const input = document.getElementById('chatInput');
+    if (!menu.contains(e.target) && e.target !== input) {
+        menu.classList.remove('visible');
+        selectedCommandIndex = -1;
     }
 });
 
@@ -1476,11 +2061,54 @@ socket.on('chat-system', (data) => {
     addChatMessage({ type: 'system', message: data.message });
 });
 
+socket.on('pong', (data) => {
+    if (pingStartTime) {
+        const latency = Date.now() - pingStartTime;
+        showToast(`🏓 Latencia: ${latency}ms`, true);
+        addChatMessage({ 
+            type: 'system', 
+            message: `Latencia con el servidor: ${latency}ms` 
+        });
+        pingStartTime = null;
+    }
+});
+
+socket.on('kicked', (data) => {
+    showToast(`❌ ${data.message}`, false);
+    addChatMessage({ 
+        type: 'system', 
+        message: `⚠️ ${data.message}` 
+    });
+    
+    // Opcional: redirigir o deshabilitar funcionalidad después de 3 segundos
+    setTimeout(async () => {
+        if (await showCustomConfirm('Has sido expulsado del workspace. ¿Deseas recargar la página?', 'Expulsado', 'Recargar', 'Cerrar')) {
+            window.location.reload();
+        }
+    }, 3000);
+});
+
+socket.on('user-kicked', (data) => {
+    addChatMessage({ 
+        type: 'system', 
+        message: `👮 ${data.kickedBy} expulsó a ${data.targetUser}: ${data.message}` 
+    });
+});
+
 socket.on('users-list', (users) => {
+    // Guardar el usuario actual si existe antes de limpiar
+    const currentUser = onlineUsers.get(socket.id);
+    
     onlineUsers.clear();
     users.forEach(user => {
         onlineUsers.set(user.id, user.username);
     });
+    
+    // Si el usuario actual no está en la lista (está en vanish), mantenerlo
+    if (currentUser && !onlineUsers.has(socket.id)) {
+        onlineUsers.set(socket.id, currentUser);
+    }
+    
     updateUserList();
 });
 
@@ -1510,6 +2138,30 @@ socket.on('username-changed', (data) => {
         type: 'system',
         message: `${data.oldUsername} ahora es ${data.newUsername}` 
     });
+});
+
+socket.on('vanish-toggled', (data) => {
+    if (data.enabled) {
+        showToast('👻 Modo invisible activado - No apareces en la lista de usuarios', 'success');
+    } else {
+        showToast('✨ Modo invisible desactivado - Ahora eres visible', 'success');
+    }
+});
+
+socket.on('vanish-error', (data) => {
+    showToast(data.message || '❌ Error al usar el comando /vanish', 'error');
+});
+
+socket.on('unban-success', (data) => {
+    showToast(`✅ ${data.message}`, 'success');
+    addChatMessage({ 
+        type: 'system', 
+        message: `🔓 ${data.unbannedBy} desbaneó la IP: ${data.ipAddress}` 
+    });
+});
+
+socket.on('unban-error', (data) => {
+    showToast(data.message || '❌ Error al desbanear IP', 'error');
 });
 
 // Actualización de tickets en tiempo real
@@ -2192,14 +2844,14 @@ document.addEventListener('click', () => {
 });
 
 // Acciones del context menu
-function contextMenuAction(action) {
+async function contextMenuAction(action) {
     if (!contextMenuTarget) return;
     
     const { path, type } = contextMenuTarget;
     
     if (action === 'delete') {
         const fileName = path.split('/').pop();
-        if (confirm(`¿Estás seguro de que quieres eliminar "${fileName}"?`)) {
+        if (await showCustomConfirm(`¿Estás seguro de que quieres eliminar "${fileName}"?`, 'Eliminar archivo', 'Eliminar', 'Cancelar')) {
             socket.emit('delete-item', {
                 workspaceId,
                 path
@@ -2207,7 +2859,7 @@ function contextMenuAction(action) {
         }
     } else if (action === 'rename') {
         const currentName = path.split('/').pop();
-        const newName = prompt('Nuevo nombre:', currentName);
+        const newName = await showCustomPrompt('Nuevo nombre:', 'Renombrar', currentName);
         if (newName && newName !== currentName) {
             socket.emit('rename-item', {
                 workspaceId,

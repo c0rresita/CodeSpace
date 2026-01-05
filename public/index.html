@@ -193,6 +193,28 @@
             color: #969696;
             font-size: 0.9em;
         }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -249,10 +271,39 @@
             }
         });
 
+        // Sistema de notificaciones toast
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? '#4ec9b0' : type === 'error' ? '#f48771' : type === 'warning' ? '#dcdcaa' : '#4fc3f7';
+            
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${bgColor};
+                color: #1e1e1e;
+                padding: 15px 25px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-size: 0.95em;
+                font-weight: 500;
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         function goToWorkspace() {
             const workspaceName = workspaceInput.value.trim();
             if (!workspaceName) {
-                alert('Por favor, ingresa un nombre para el workspace');
+                showToast('Por favor, ingresa un nombre para el workspace', 'warning');
                 return;
             }
             
