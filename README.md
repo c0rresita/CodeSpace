@@ -418,19 +418,9 @@ Este proyecto está bajo la Licencia MIT.
 - GitHub: [@c0rresita](https://github.com/c0rresita)
 - Repositorio: [CodeSpace](https://github.com/c0rresita/CodeSpace)
 
----
-
-## 🙏 Agradecimientos
-
-- **CodeMirror** - Excelente editor de código
-- **Socket.io** - Comunicación en tiempo real
-- **MongoDB** - Base de datos flexible
-- **TypeScript** - Tipado estático para JavaScript
-- **Express** - Framework web minimalista
-
----
-
 <div align="center">
+
+---
 
 **⭐ Si te gusta este proyecto, dale una estrella en GitHub ⭐**
 
