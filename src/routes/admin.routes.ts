@@ -4,10 +4,12 @@ import path from 'path';
 import archiver from 'archiver';
 import bcrypt from 'bcrypt';
 import { requireAdmin, requireSuperAdmin } from '../middleware/auth';
-import { workspaces, cleanupExpiredWorkspaces, calculateWorkspaceSize, countFiles } from '../services/workspace.service';
+import { workspaces, cleanupExpiredWorkspaces, calculateWorkspaceSize, countFiles, onlineUserSockets } from '../services/workspace.service';
 import { config } from '../config';
 import * as logService from '../services/log.service';
 import * as reportService from '../services/report.service';
+import * as userService from '../services/user.service';
+import * as ticketService from '../services/ticket.service';
 
 const router = Router();
 const DATA_DIR = path.join(process.cwd(), config.dataDir);
@@ -134,7 +136,8 @@ router.get('/active-users', requireAdmin, async (req: Request, res: Response) =>
         res.json({
             activeWorkspaces,
             totalUniqueUsers,
-            totalSessions
+            totalSessions,
+            onlineUserIds: Array.from(onlineUserSockets.keys())
         });
     } catch (error) {
         console.error('Error obteniendo usuarios activos:', error);
@@ -403,6 +406,61 @@ router.delete('/workspace/password', requireAdmin, async (req: Request, res: Res
 });
 
 // ====================
+// USUARIOS REGISTRADOS
+// ====================
+
+router.get('/registered-users', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { isDatabaseConnected } = await import('../database/connection');
+        const usersFilePath = path.join(DATA_DIR, 'users.json');
+
+        let rawUsers: any[] = [];
+        if (isDatabaseConnected()) {
+            const UserModel = (await import('../models/User')).default;
+            rawUsers = await UserModel.find({}, { password: 0 }).lean();
+        } else {
+            try {
+                const data = await fs.readFile(usersFilePath, 'utf-8');
+                rawUsers = JSON.parse(data).map((u: any) => { const { password: _, ...rest } = u; return rest; });
+            } catch { rawUsers = []; }
+        }
+
+        // Para cada usuario obtener tickets y workspaces
+        const allTickets = await ticketService.getAllTickets();
+
+        const users = rawUsers.map((u: any) => {
+            const uid = String(u._id || u.id);
+            const userTickets = allTickets.filter((t: any) => t.userId === uid);
+
+            // Recopilar workspaces
+            const ownedIds: string[]        = u.ownedWorkspaces        || [];
+            const participatedIds: string[] = u.participatedWorkspaces || [];
+            const allWsIds = [...new Set([...ownedIds, ...participatedIds])];
+
+            return {
+                id:           uid,
+                email:        u.email,
+                username:     u.username,
+                nickname:     u.nickname || u.username,
+                createdAt:    u.createdAt,
+                lastLogin:    u.lastLogin,
+                ticketCount:  userTickets.length,
+                ticketOpen:   userTickets.filter((t: any) => t.status === 'open' || t.status === 'in-progress').length,
+                workspaceCount: allWsIds.length,
+                ownedCount:     ownedIds.length,
+                participatedCount: participatedIds.length,
+                workspaceIds: allWsIds.slice(0, 10)
+            };
+        });
+
+        res.json({ users, total: users.length });
+    } catch (error) {
+        console.error('Error al obtener usuarios registrados:', error);
+        res.status(500).json({ error: 'Error al obtener usuarios' });
+    }
+});
+
+// ====================
 // MODERADORES
 // ====================
 
@@ -557,6 +615,141 @@ router.delete('/moderators', requireSuperAdmin, async (req: Request, res: Respon
     } catch (error) {
         console.error('Error eliminando moderador:', error);
         res.status(500).json({ error: 'Error al eliminar moderador' });
+    }
+});
+
+// ── USUARIOS - DETALLES ──────────────────────────
+
+// Obtener access logs de un usuario
+router.get('/users/:userId/access-logs', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const AccessLog = (await import('../models/AccessLog')).default;
+        
+        const logs = await AccessLog.find({ userId }).sort({ timestamp: -1 }).limit(100).lean();
+        
+        res.json({ logs: logs || [] });
+    } catch (error) {
+        console.error('Error obteniendo access logs:', error);
+        res.status(500).json({ error: 'Error al obtener logs' });
+    }
+});
+
+// Obtener tickets de un usuario
+router.get('/users/:userId/tickets', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const allTickets = await ticketService.getAllTickets();
+        
+        const userTickets = allTickets.filter((t: any) => t.userId === userId);
+        
+        res.json({ tickets: userTickets });
+    } catch (error) {
+        console.error('Error obteniendo tickets del usuario:', error);
+        res.status(500).json({ error: 'Error al obtener tickets' });
+    }
+});
+
+// Cambiar contraseña de usuario (por admin)
+router.put('/users/:userId/password', requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const { password } = req.body;
+        
+        if (!password || password.length < 4) {
+            return res.status(400).json({ error: 'Contraseña debe tener mínimo 4 caracteres' });
+        }
+        
+        const { isDatabaseConnected } = await import('../database/connection');
+        
+        if (isDatabaseConnected()) {
+            const UserModel = (await import('../models/User')).default;
+            const hashedPassword = await bcrypt.hash(password, 10);
+            
+            await UserModel.findByIdAndUpdate(userId, { password: hashedPassword });
+        } else {
+            const usersFilePath = path.join(DATA_DIR, 'users.json');
+            const data = await fs.readFile(usersFilePath, 'utf-8');
+            let users = JSON.parse(data);
+            
+            const userIndex = users.findIndex((u: any) => u._id === userId || u.id === userId);
+            if (userIndex === -1) return res.status(404).json({ error: 'Usuario no encontrado' });
+            
+            users[userIndex].password = await bcrypt.hash(password, 10);
+            await fs.writeFile(usersFilePath, JSON.stringify(users, null, 2));
+        }
+        
+        res.json({ success: true, message: 'Contraseña actualizada' });
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        res.status(500).json({ error: 'Error al cambiar contraseña' });
+    }
+});
+
+// Bloquear usuario
+router.post('/users/:userId/block', requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const BlockedIP = (await import('../models/BlockedIP')).default;
+        const AccessLog = (await import('../models/AccessLog')).default;
+        
+        // Obtener últimas IPs del usuario
+        const recentLogs = await AccessLog.find({ userId }).sort({ timestamp: -1 }).limit(50).lean();
+        const userIPs = [...new Set(recentLogs.map((log: any) => log.ip))];
+        
+        // Bloquear cada IP
+        for (const ip of userIPs) {
+            const existing = await BlockedIP.findOne({ ip });
+            if (!existing) {
+                await BlockedIP.create({
+                    ip,
+                    reason: `Usuario ${userId} bloqueado por admin`,
+                    blockedBy: req.session.userEmail || 'admin',
+                    permanent: true,
+                    blockedAt: new Date()
+                });
+            }
+        }
+        
+        // Marcar usuario como bloqueado en la base de datos (si es posible)
+        const { isDatabaseConnected } = await import('../database/connection');
+        if (isDatabaseConnected()) {
+            const UserModel = (await import('../models/User')).default;
+            await UserModel.findByIdAndUpdate(userId, { blocked: true });
+        }
+        
+        res.json({ success: true, message: 'Usuario bloqueado' });
+    } catch (error) {
+        console.error('Error al bloquear usuario:', error);
+        res.status(500).json({ error: 'Error al bloquear usuario' });
+    }
+});
+
+// Desactivar usuario
+router.post('/users/:userId/deactivate', requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const { isDatabaseConnected } = await import('../database/connection');
+        
+        if (isDatabaseConnected()) {
+            const UserModel = (await import('../models/User')).default;
+            await UserModel.findByIdAndUpdate(userId, { active: false });
+        } else {
+            const usersFilePath = path.join(DATA_DIR, 'users.json');
+            const data = await fs.readFile(usersFilePath, 'utf-8');
+            let users = JSON.parse(data);
+            
+            const userIndex = users.findIndex((u: any) => u._id === userId || u.id === userId);
+            if (userIndex === -1) return res.status(404).json({ error: 'Usuario no encontrado' });
+            
+            users[userIndex].active = false;
+            await fs.writeFile(usersFilePath, JSON.stringify(users, null, 2));
+        }
+        
+        res.json({ success: true, message: 'Usuario desactivado' });
+    } catch (error) {
+        console.error('Error al desactivar usuario:', error);
+        res.status(500).json({ error: 'Error al desactivar usuario' });
     }
 });
 

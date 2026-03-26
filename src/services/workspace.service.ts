@@ -7,6 +7,9 @@ import { config } from '../config';
 // Almacenamiento en memoria
 export const workspaces = new Map<string, Workspace>();
 
+// userId → set of socket IDs currently connected (tracks who is online)
+export const onlineUserSockets = new Map<string, Set<string>>();
+
 const DATA_DIR = path.join(process.cwd(), config.dataDir);
 
 // Asegurar que existe el directorio de datos
@@ -27,7 +30,9 @@ export async function saveWorkspace(workspaceId: string, workspace: Workspace): 
             structure: workspace.structure,
             password: workspace.password,
             lastAccess: Date.now(),
-            created: workspace.created || Date.now()
+            created: workspace.created || Date.now(),
+            ownerId: workspace.ownerId,
+            participants: workspace.participants
         };
         await fs.writeFile(filePath, JSON.stringify(data, null, 2));
     } catch (error) {
@@ -52,7 +57,9 @@ export async function loadWorkspace(workspaceId: string): Promise<Workspace | nu
             users: 0,
             created: parsed.created,
             uniqueUsers: new Set<string>(),
-            sessionSockets: new Map<string, Set<string>>()
+            sessionSockets: new Map<string, Set<string>>(),
+            ownerId: parsed.ownerId,
+            participants: parsed.participants || []
         };
     } catch (error) {
         return null;
@@ -90,12 +97,12 @@ export async function cleanupExpiredWorkspaces(): Promise<void> {
 }
 
 // Inicializar workspace
-export async function initWorkspace(workspaceId: string, password: string | null = null): Promise<Workspace | { error: string }> {
+export async function initWorkspace(workspaceId: string, password: string | null = null, bypassPassword = false): Promise<Workspace | { error: string }> {
     if (workspaces.has(workspaceId)) {
         const workspace = workspaces.get(workspaceId)!;
         
         // Verificar contraseña si el workspace está protegido
-        if (workspace.password) {
+        if (workspace.password && !bypassPassword) {
             if (!password) {
                 return { error: 'password_required' };
             }
@@ -130,7 +137,7 @@ export async function initWorkspace(workspaceId: string, password: string | null
         // Las contraseñas solo se establecen desde el menú contextual
         
         await saveWorkspace(workspaceId, workspace);
-    } else if (workspace.password) {
+    } else if (workspace.password && !bypassPassword) {
         // Workspace existente con contraseña
         if (!password) {
             return { error: 'password_required' };

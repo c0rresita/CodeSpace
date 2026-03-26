@@ -12,6 +12,7 @@ import adminRoutes from './routes/admin.routes';
 import workspaceRoutes from './routes/workspace.routes';
 import chatRoutes from './routes/chat.routes';
 import ticketRoutes from './routes/ticket.routes';
+import userRoutes from './routes/user.routes';
 
 const app = express();
 const server = createServer(app);
@@ -50,6 +51,18 @@ app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, '../public', 'login.html'));
 });
 
+app.get('/signin', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public', 'signin.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    if (req.session?.isLoggedIn && req.session?.userId) {
+        res.sendFile(path.join(__dirname, '../public', 'dashboard.html'));
+    } else {
+        res.redirect('/signin');
+    }
+});
+
 app.get('/admin', (req, res) => {
     if (req.session && (req.session.isAdmin || req.session.isModerator)) {
         res.sendFile(path.join(__dirname, '../public', 'admin.html'));
@@ -67,6 +80,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/workspace', workspaceRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/user', userRoutes);
 
 // Rutas de tickets con acceso a io
 app.use('/api/tickets', (req, res, next) => {

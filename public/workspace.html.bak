@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeSpace - Workspace</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Devicon para iconos de lenguajes -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
+    
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: #1e1e1e;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            color: #cccccc;
+        }
+
+        /* Barra de título estilo macOS */
+        .titlebar {
+            background: #323233;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid #1e1e1e;
+            -webkit-app-region: drag;
+        }
+
+        .titlebar-buttons {
+            display: flex;
+            gap: 8px;
+            margin-right: 16px;
+        }
+
+        .titlebar-button {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-button:hover {
+            opacity: 0.7;
+        }
+
+        .titlebar-button.close { background: #ff5f57; }
+        .titlebar-button.minimize { background: #ffbd2e; }
+        .titlebar-button.maximize { background: #28ca42; }
+
+        .titlebar-title {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            color: #969696;
+            font-weight: 400;
+        }
+
+        .titlebar-clock {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: #cccccc;
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .titlebar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            color: #969696;
+            margin-left: auto;
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-date {
+            color: #cccccc;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            color: #cccccc;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: #3e3e42;
+        }
+
+        /* Header */
+        .header {
+            background: #2d2d30;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            font-size: 1.2em;
+            font-weight: 500;
+            color: #cccccc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .file-name {
+            color: #969696;
+            font-size: 0.95em;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .users-count {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #969696;
+        }
+
+        .users-indicator {
+            width: 8px;
+            height: 8px;
+            background: #4ec9b0;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            background: #0e639c;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-family: inherit;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: #1177bb;
+        }
+
+        .btn:active {
+            background: #0d5a8f;
+        }
+
+        /* Contenedor principal */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar-container {
+            display: flex;
+            position: relative;
+            height: 100%;
+        }
+
+        .activity-bar {
+            width: 48px;
+            background: #333333;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10px;
+            gap: 10px;
+        }
+
+        .activity-bar-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #858585;
+            border-left: 2px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .activity-bar-item:hover {
+            color: #ffffff;
+        }
+
+        .activity-bar-item.active {
+            color: #ffffff;
+            border-left-color: #007acc;
+        }
+
+        .activity-bar-item .badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #007acc;
+            color: white;
+            font-size: 9px;
+            padding: 2px 4px;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            min-width: 150px;
+            max-width: 600px;
+            background: #252526;
+            border-right: 1px solid #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: width 0.2s;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+            border: none;
+            overflow: hidden;
+        }
+
+        .sidebar.resizing {
+            transition: none;
+        }
+
+        .sidebar-resize-handle {
+            width: 4px;
+            background: transparent;
+            cursor: col-resize;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+        }
+
+        .sidebar-resize-handle:hover {
+            background: #007acc;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+        }
+
+        .sidebar-content.active {
+            display: flex;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            background: #2d2d30;
+            border-bottom: 1px solid #1e1e1e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #969696;
+            font-weight: 600;
+        }
+
+        .workspace-info {
+            font-size: 0.7em;
+            color: #6e6e6e;
+            margin-top: 4px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: #969696;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 1.1em;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .icon-btn:hover {
+            background: #2a2d2e;
+            color: #cccccc;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .tree-item {
+            padding: 6px 16px 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.15s;
+            user-select: none;
+            color: #cccccc;
+            font-size: 0.9em;
+        }
+
+        .tree-item:hover {
+            background: #2a2d2e;
+        }
+
+        .tree-item.selected {
+            background: #094771;
+            color: #ffffff;
+        }
+
+        .tree-item.folder {
+            font-weight: 500;
+        }
+
+        .tree-item.dragging {
+            opacity: 0.5;
+        }
+
+        .tree-item.drag-over {
+            background: #094771;
+        }
+
+        .tree-item .icon {
+            font-size: 1em;
+            width: 16px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tree-item .icon svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .tree-item .chevron {
+            font-size: 0.8em;
+            transition: transform 0.2s;
+            width: 12px;
+        }
+
+        .tree-item .chevron.expanded {
+            transform: rotate(90deg);
+        }
+
+        .tree-children {
+            margin-left: 16px;
+        }
+
+        /* Editor */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            overflow: hidden;
+        }
+
+        .editor-tabs {
+            background: #2d2d30;
+            border-bottom: 1px solid #1e1e1e;
+            display: flex;
+            align-items: center;
+            min-height: 35px;
+            overflow-x: auto;
+        }
+
+        .editor-tab {
+            padding: 8px 16px;
+            background: #2d2d30;
+            border-right: 1px solid #1e1e1e;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85em;
+            color: #969696;
+            transition: background 0.15s;
+        }
+
+        .editor-tab:hover {
+            background: #2a2d2e;
+        }
+
+        .editor-tab.active {
+            background: #1e1e1e;
+            color: #ffffff;
+        }
+
+        .editor-tab .close-tab {
+            opacity: 0;
+            font-size: 1.2em;
+            padding: 0 4px;
+        }
+
+        .editor-tab:hover .close-tab,
+        .editor-tab.active .close-tab {
+            opacity: 1;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .toolbar-btn {
+            background: transparent;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #3e3e42;
+            border-color: #569cd6;
+        }
+
+        .toolbar-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #3e3e42;
+            margin: 0 4px;
+        }
+
+        .toolbar-select {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .toolbar-select:hover {
+            border-color: #569cd6;
+        }
+
+        .toolbar-select option {
+            background: #2d2d30;
+            color: #cccccc;
+        }
+
+        .editor-content {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .CodeMirror {
+            height: 100% !important;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+            font-size: 14px !important;
+            background: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+
+        .CodeMirror-gutters {
+            background: #1e1e1e !important;
+            border-right: 1px solid #3e3e42 !important;
+        }
+
+        .CodeMirror-linenumber {
+            color: #858585 !important;
+        }
+
+        .CodeMirror-cursor {
+            border-left-color: #d4d4d4 !important;
+        }
+
+        .CodeMirror-selected {
+            background: #264f78 !important;
+        }
+
+        .CodeMirror-line::selection,
+        .CodeMirror-line > span::selection,
+        .CodeMirror-line > span > span::selection {
+            background: #264f78 !important;
+        }
+
+        #editor {
+            flex: 1;
+            padding: 20px;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            border: none;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            resize: none;
+            outline: none;
+            line-height: 1.6;
+        }
+
+        #editor::selection {
+            background: #264f78;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #969696;
+            gap: 16px;
+        }
+
+        .empty-state .icon {
+            font-size: 4em;
+            opacity: 0.3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-state .icon svg {
+            width: 80px;
+            height: 80px;
+        }
+
+        .empty-state p {
+            font-size: 1.1em;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2d2d30;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid #3e3e42;
+        }
+
+        .modal-header {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+            color: #cccccc;
+            font-weight: 500;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            color: #cccccc;
+            font-size: 0.95em;
+            font-family: inherit;
+            margin-bottom: 20px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-secondary {
+            background: #3e3e42;
+            color: #cccccc;
+        }
+
+        .btn-secondary:hover {
+            background: #4e4e52;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            color: #d4d4d4;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #4ec9b0;
+        }
+
+        /* Upload Modal */
+        .upload-area {
+            border: 2px dashed #3e3e42;
+            border-radius: 8px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #1e1e1e;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #0e639c;
+            background: #252526;
+        }
+
+        .upload-area.dragover {
+            border-color: #4ec9b0;
+            background: #252526;
+            border-style: solid;
+        }
+
+        .upload-area .icon {
+            font-size: 3em;
+            color: #4ec9b0;
+            margin-bottom: 15px;
+        }
+
+        .upload-area .icon svg {
+            width: 60px;
+            height: 60px;
+        }
+
+        .upload-area h3 {
+            color: #cccccc;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .upload-area p {
+            color: #969696;
+            font-size: 0.9em;
+        }
+
+        .upload-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .upload-option-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: #3e3e42;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .upload-option-btn:hover {
+            background: #4e4e52;
+            border-color: #0e639c;
+        }
+
+        .upload-option-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #252526;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            color: #cccccc;
+            font-size: 0.9em;
+        }
+
+        .file-list-item svg {
+            width: 16px;
+            height: 16px;
+            color: #4ec9b0;
+        }
+
+        .file-list-item .file-path {
+            flex: 1;
+            color: #cccccc;
+        }
+
+        .file-list-item .file-size {
+            color: #969696;
+            font-size: 0.85em;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #2d2d30;
+            color: #cccccc;
+            padding: 12px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            pointer-events: none;
+            border: 1px solid #3e3e42;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            border-color: #4ec9b0;
+        }
+
+        /* Chat Notification */
+        .chat-notification {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #2d2d30;
+            border: 1px solid #4ec9b0;
+            border-radius: 8px;
+            padding: 15px;
+            max-width: 350px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateX(400px);
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 10000;
+        }
+
+        .chat-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
+        }
+
+        .chat-notification-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: #4ec9b0;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        .chat-notification-header svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .chat-notification-user {
+            color: #4ec9b0;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .chat-notification-message {
+            color: #cccccc;
+            font-size: 0.9em;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .chat-notification-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #969696;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-notification-close:hover {
+            color: #cccccc;
+        }
+
+        /* Tickets Styles */
+        .tickets-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .ticket-card {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .ticket-card:hover {
+            background: #37373d;
+            border-color: #007acc;
+        }
+
+        .ticket-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .ticket-title {
+            font-weight: 600;
+            color: #cccccc;
+            font-size: 0.9em;
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .ticket-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .ticket-status.open { background: #1e88e5; color: white; }
+        .ticket-status.in-progress { background: #fb8c00; color: white; }
+        .ticket-status.resolved { background: #43a047; color: white; }
+        .ticket-status.closed { background: #616161; color: white; }
+
+        .ticket-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 0.75em;
+            color: #858585;
+            margin-bottom: 6px;
+        }
+
+        .ticket-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ticket-category {
+            padding: 2px 6px;
+            background: #3e3e42;
+            border-radius: 4px;
+            font-size: 0.75em;
+            color: #4ec9b0;
+        }
+
+        .ticket-description {
+            color: #969696;
+            font-size: 0.8em;
+            line-height: 1.4;
+            margin-top: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .ticket-priority {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+
+        .ticket-priority.low { background: #2d2d30; color: #4ec9b0; }
+        .ticket-priority.medium { background: #37373d; color: #ffa500; }
+        .ticket-priority.high { background: #5a1d1d; color: #f48771; }
+
+        .ticket-responses-count {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75em;
+            color: #858585;
+            margin-top: 8px;
+        }
+
+        .modal-textarea {
+            width: 100%;
+            min-height: 100px;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 10px;
+            color: #cccccc;
+            font-size: 0.9em;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+
+        .modal-textarea:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .modal-select {
+            width: 100%;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 8px;
+            color: #cccccc;
+            font-size: 0.9em;
+            margin-bottom: 12px;
+        }
+
+        .modal-select:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        /* Mensajes del chat de tickets */
+        .ticket-message {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 10px;
+            background: #252525;
+            border-radius: 6px;
+            border-left: 3px solid #3a3a3a;
+        }
+
+        .ticket-message.admin {
+            background: #1a2332;
+            border-left-color: #007acc;
+        }
+
+        .ticket-message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8em;
+            color: #999;
+        }
+
+        .ticket-message-user {
+            font-weight: 600;
+            color: #ccc;
+        }
+
+        .ticket-message.admin .ticket-message-user {
+            color: #4fc3f7;
+        }
+
+        .ticket-message-time {
+            margin-left: auto;
+        }
+
+        .ticket-message-text {
+            color: #d4d4d4;
+            font-size: 0.9em;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Tema Claro */
+        body.light-theme {
+            background: #f3f3f3;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .titlebar {
+            background: #e8e8e8;
+            border-bottom: 1px solid #d0d0d0;
+        }
+
+        body.light-theme .titlebar-button {
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .titlebar-clock,
+        body.light-theme .titlebar-date {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .theme-toggle {
+            border-color: #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .theme-toggle:hover {
+            background: #d0d0d0;
+        }
+
+        body.light-theme .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .header-left h1,
+        body.light-theme .header-right {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .header-actions button {
+            background: #f0f0f0;
+            color: #1e1e1e;
+            border: 1px solid #d0d0d0;
+        }
+
+        body.light-theme .header-actions button:hover {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .activity-bar {
+            background: #f3f3f3;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .activity-bar-item {
+            color: #424242;
+        }
+
+        body.light-theme .activity-bar-item.active,
+        body.light-theme .activity-bar-item:hover {
+            background: #e8e8e8;
+            color: #0e639c;
+        }
+
+        body.light-theme .sidebar {
+            background: #f8f8f8;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .sidebar-header {
+            color: #1e1e1e;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f8f8;
+        }
+
+        body.light-theme .sidebar-title {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .workspace-info {
+            color: #5a5a5a;
+        }
+
+        body.light-theme .tree-item {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .tree-item:hover {
+            background: #e8e8e8;
+        }
+
+        body.light-theme .tree-item.selected {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .resize-handle {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .editor-container {
+            background: #ffffff;
+        }
+
+        body.light-theme .editor-tabs {
+            background: #f3f3f3;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .editor-tab {
+            background: #f3f3f3;
+            color: #1e1e1e;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .editor-tab.active {
+            background: #ffffff;
+            color: #0e639c;
+        }
+
+        body.light-theme .editor-tab:hover {
+            background: #e8e8e8;
+        }
+
+        body.light-theme .editor-header {
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .editor-toolbar {
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .toolbar-btn {
+            border-color: #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .toolbar-btn:hover {
+            background: #e8e8e8;
+            border-color: #0078d4;
+        }
+
+        body.light-theme .toolbar-separator {
+            background: #d0d0d0;
+        }
+
+        body.light-theme .toolbar-select {
+            background: #ffffff;
+            border-color: #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .toolbar-select:hover {
+            border-color: #0078d4;
+        }
+
+        body.light-theme .toolbar-select option {
+            background: #ffffff;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .CodeMirror {
+            background: #ffffff !important;
+            color: #1e1e1e !important;
+        }
+
+        body.light-theme .CodeMirror-gutters {
+            background: #f8f8f8 !important;
+            border-right: 1px solid #e0e0e0 !important;
+        }
+
+        body.light-theme .CodeMirror-linenumber {
+            color: #858585 !important;
+        }
+
+        body.light-theme .modal-overlay {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        body.light-theme .modal-content {
+            background: #ffffff;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        body.light-theme .modal-content h2 {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .modal-content input {
+            background: #f8f8f8;
+            border: 1px solid #d0d0d0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme .modal-content button {
+            background: #0e639c;
+        }
+
+        body.light-theme .modal-content button:first-child {
+            background: #f0f0f0;
+            color: #1e1e1e;
+        }
+
+        body.light-theme #toast {
+            background: #ffffff;
+            color: #1e1e1e;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-theme #contextMenu {
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .context-menu-item {
+            color: #1e1e1e;
+        }
+
+        body.light-theme .context-menu-item:hover {
+            background: #e8e8e8;
+        }
+
+        body.light-theme .chat-notification {
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .chat-notification-user {
+            color: #0e639c;
+        }
+
+        body.light-theme .chat-notification-message {
+            color: #424242;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4e4e4e;
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            padding: 4px 0;
+            z-index: 2000;
+            display: none;
+            min-width: 180px;
+        }
+
+        .context-menu.show {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            color: #cccccc;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.15s;
+        }
+
+        .context-menu-item svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .context-menu-item:hover {
+            background: #094771;
+        }
+
+        .context-menu-item.danger:hover {
+            background: #5a1d1d;
+            color: #f48771;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #3e3e42;
+            margin: 4px 0;
+        }
+
+        /* Chat Styles */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 10px;
+        }
+
+        .chat-header {
+            padding: 10px 0;
+            border-bottom: 1px solid #3e3e42;
+            margin-bottom: 10px;
+        }
+
+        .chat-header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .chat-header h3 {
+            font-size: 0.9em;
+            color: #cccccc;
+            margin: 0;
+            flex: 1;
+        }
+
+        .chat-header-title input {
+            font-size: 0.9em;
+            color: #cccccc;
+            background: #2d2d30;
+            border: 1px solid #4ec9b0;
+            border-radius: 4px;
+            padding: 4px 8px;
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .chat-header-title input:focus {
+            outline: none;
+            border-color: #569cd6;
+        }
+
+        .edit-chat-name-btn {
+            background: none;
+            border: none;
+            color: #858585;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .edit-chat-name-btn:hover {
+            color: #4ec9b0;
+        }
+
+        .username-input {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .username-input input {
+            flex: 1;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 6px 10px;
+            color: #cccccc;
+            font-size: 0.85em;
+        }
+
+        .username-input input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .username-input button {
+            background: #007acc;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+
+        .username-input button:hover {
+            background: #005a9e;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .chat-message {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px;
+            background: #2d2d30;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .chat-message.own {
+            background: #094771;
+        }
+
+        .chat-message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-username {
+            font-weight: 600;
+            color: #4ec9b0;
+        }
+
+        .chat-message.own .chat-username {
+            color: #9cdcfe;
+        }
+
+        .chat-time {
+            font-size: 0.75em;
+            color: #858585;
+        }
+
+        .chat-text {
+            color: #cccccc;
+            word-wrap: break-word;
+        }
+
+        .chat-system {
+            text-align: center;
+            color: #858585;
+            font-size: 0.75em;
+            font-style: italic;
+            padding: 4px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 8px;
+            position: relative;
+        }
+
+        .chat-commands-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .chat-commands-menu.visible {
+            display: block;
+        }
+
+        .command-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .command-item:last-child {
+            border-bottom: none;
+        }
+
+        .command-item:hover,
+        .command-item.selected {
+            background: #37373d;
+        }
+
+        .command-name {
+            color: #4ec9b0;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 2px;
+        }
+
+        .command-description {
+            color: #858585;
+            font-size: 0.8em;
+        }
+
+        .chat-input-container input {
+            flex: 1;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: #cccccc;
+            font-size: 0.85em;
+        }
+
+        .chat-input-container input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .chat-input-container button {
+            background: #007acc;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chat-input-container button:hover {
+            background: #005a9e;
+        }
+
+        .online-users {
+            padding: 10px 0;
+            border-top: 1px solid #3e3e42;
+            margin-top: 10px;
+        }
+
+        .online-users h4 {
+            font-size: 0.8em;
+            color: #858585;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .user-item:hover {
+            background: #2d2d30;
+        }
+
+        .user-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ec9b0;
+        }
+
+        .user-name {
+            color: #cccccc;
+        }
+
+        .user-item.own .user-name {
+            color: #9cdcfe;
+            font-weight: 600;
+        }
+
+        /* Plan Badge */
+        .plan-badge {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85em;
+            color: #969696;
+            z-index: 100;
+        }
+
+        .plan-badge.pro {
+            border-color: #4ec9b0;
+            color: #4ec9b0;
+        }
+
+        .plan-badge a {
+            color: #0e639c;
+            text-decoration: none;
+            margin-left: 8px;
+        }
+
+        .plan-badge a:hover {
+            text-decoration: underline;
+        }
+
+        /* Difuminado del fondo cuando hay modal de contraseña */
+        .blurred-background {
+            filter: blur(10px);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .modal.password-modal {
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .lockout-message {
+            background: #3e2723;
+            border: 1px solid #ff5252;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .lockout-timer {
+            font-size: 1.5em;
+            color: #ff5252;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .attempts-remaining {
+            color: #ffab00;
+            font-size: 0.85em;
+            margin-top: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de título macOS -->
+    <div class="titlebar">
+        <div class="titlebar-buttons">
+            <div class="titlebar-button close" onclick="goToHome()"></div>
+            <div class="titlebar-button minimize" onclick="toggleFullscreen()"></div>
+            <div class="titlebar-button maximize" onclick="minimizeWindow()"></div>
+        </div>
+        <div class="titlebar-clock" id="titlebarClock">00:00:00</div>
+        <div class="titlebar-right">
+            <div class="titlebar-date" id="titlebarDate"></div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <i data-feather="sun" style="width: 14px; height: 14px;"></i>
+                <span id="themeText">Claro</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo" onclick="window.location.href='/'">
+                <i data-feather="code"></i>
+                <span>CodeSpace</span>
+            </div>
+            <div class="file-name" id="workspaceName">workspace</div>
+            <div class="file-name" style="color: #3e3e42">|</div>
+            <div class="file-name" id="currentFileName">Sin archivo abierto</div>
+        </div>
+        <div class="header-right">
+            <div class="users-count">
+                <div class="users-indicator"></div>
+                <span id="usersCount">0</span> <span id="usersText">usuarios</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn" onclick="exportWorkspace()" title="Descargar como ZIP">
+                    <i data-feather="download" style="width: 14px; height: 14px;"></i>
+                    Descargar
+                </button>
+                <button class="btn" onclick="toggleWorkspacePassword()" id="workspacePasswordBtn" title="Proteger workspace">
+                    <i data-feather="lock" style="width: 14px; height: 14px;"></i>
+                    Contraseña
+                </button>
+                <button class="btn" onclick="showTerminal()" id="terminalBtn" title="Abrir Terminal" style="display: none;">
+                    <i data-feather="terminal" style="width: 14px; height: 14px;"></i>
+                    Terminal
+                </button>
+                <button class="btn" onclick="shareLink()">
+                    <i data-feather="link" style="width: 14px; height: 14px;"></i>
+                    Compartir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor principal -->
+    <div class="main-container">
+        <div class="sidebar-container">
+            <!-- Activity Bar -->
+            <div class="activity-bar">
+                <div class="activity-bar-item active" onclick="switchSidebar('files')" title="Explorador">
+                    <i data-feather="folder" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div class="activity-bar-item" onclick="switchSidebar('chat')" title="Chat">
+                    <i data-feather="message-square" style="width: 20px; height: 20px;"></i>
+                    <span class="badge" id="chatBadge" style="display: none;">0</span>
+                </div>
+                <div class="activity-bar-item" onclick="switchSidebar('users')" title="Usuarios">
+                    <i data-feather="users" style="width: 20px; height: 20px;"></i>
+                    <span class="badge" id="usersBadge">1</span>
+                </div>
+                <div class="activity-bar-item" onclick="switchSidebar('tickets')" title="Soporte/Tickets">
+                    <i data-feather="life-buoy" style="width: 20px; height: 20px;"></i>
+                    <span class="badge" id="ticketsBadge" style="display: none;">0</span>
+                </div>
+                <div class="activity-bar-item" style="margin-top: auto; margin-bottom: 10px;" onclick="handleUserButtonClick()" title="Acceder" id="userButton">
+                    <i data-feather="log-in" style="width: 20px; height: 20px;" id="userButtonIcon"></i>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-resize-handle" id="resizeHandle"></div>
+                
+                <!-- Files Panel -->
+                <div class="sidebar-content active" id="filesPanel">
+                    <div class="sidebar-header">
+                        <div>
+                            <div class="sidebar-title">Explorador</div>
+                            <div class="workspace-info">Los cambios se guardan automáticamente</div>
+                        </div>
+                        <div class="sidebar-actions">
+                            <button class="icon-btn" onclick="showNewFileModal()" title="Nuevo archivo">
+                                <i data-feather="file-plus"></i>
+                            </button>
+                            <button class="icon-btn" onclick="showNewFolderModal()" title="Nueva carpeta">
+                                <i data-feather="folder-plus"></i>
+                            </button>
+                            <button class="icon-btn" onclick="showUploadModal()" title="Subir archivos">
+                                <i data-feather="upload"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="file-tree" id="fileTree"></div>
+                </div>
+
+                <!-- Chat Panel -->
+                <div class="sidebar-content" id="chatPanel">
+                    <div class="chat-container">
+                        <div class="chat-header">
+                            <div class="chat-header-title">
+                                <h3 id="chatTitle">Chat del Workspace</h3>
+                                <button class="edit-chat-name-btn" onclick="editChatName()" title="Editar nombre del chat">
+                                    <i data-feather="edit-2" style="width: 14px; height: 14px;"></i>
+                                </button>
+                            </div>
+                            <div class="username-input">
+                                <input type="text" id="usernameInput" placeholder="Tu nombre (puedes cambiarlo cuando quieras)..." maxlength="20">
+                                <button onclick="setUsername()" title="Guardar nombre">
+                                    <i data-feather="check" style="width: 14px; height: 14px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chatMessages"></div>
+                        <div class="chat-input-container">
+                            <div class="chat-commands-menu" id="chatCommandsMenu"></div>
+                            <input type="text" id="chatInput" placeholder="Escribe un mensaje o usa / para comandos..." maxlength="500">
+                            <button onclick="sendMessage()">
+                                <i data-feather="send" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Panel -->
+                <div class="sidebar-content" id="usersPanel">
+                    <div class="chat-container">
+                        <div class="online-users">
+                            <h4>Usuarios Conectados</h4>
+                            <div class="user-list" id="userList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tickets Panel -->
+                <div class="sidebar-content" id="ticketsPanel">
+                    <div class="chat-container">
+                        <div class="chat-header">
+                            <h3>Soporte / Tickets</h3>
+                            <button class="btn" onclick="showNewTicketModal()" style="font-size: 0.85em; padding: 5px 10px;">
+                                <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                                Nuevo Ticket
+                            </button>
+                        </div>
+                        <div class="tickets-list" id="ticketsList">
+                            <div style="text-align: center; color: #858585; padding: 20px;">
+                                Cargando tickets...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor -->
+        <div class="editor-container">
+            <div class="editor-tabs" id="editorTabs">
+                <!-- Se llenará dinámicamente -->
+            </div>
+            <div class="empty-state" id="emptyState">
+                <div class="icon">
+                    <i data-feather="file-text"></i>
+                </div>
+                <p>Selecciona o crea un archivo para empezar</p>
+            </div>
+            <div class="editor-wrapper" id="editorWrapper" style="display: none;">
+                <div class="editor-content">
+                    <textarea id="editor" style="display: none;"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para nuevo archivo/carpeta -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalTitle">Nuevo archivo</div>
+            <input type="text" class="modal-input" id="modalInput" placeholder="Nombre">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn" onclick="confirmModal()">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para contraseña de acceso -->
+    <div class="modal password-modal" id="accessPasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-feather="lock" style="width: 20px; height: 20px;"></i>
+                <span>Workspace Protegido</span>
+            </div>
+            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
+                Este workspace está protegido con contraseña
+            </p>
+            <!-- Mensaje de bloqueo -->
+            <div class="lockout-message" id="lockoutMessage" style="display: none;">
+                <div style="color: #ff5252; font-weight: 500;">
+                    <i data-feather="alert-triangle" style="width: 20px; height: 20px;"></i>
+                    Demasiados intentos fallidos
+                </div>
+                <div class="lockout-timer" id="lockoutTimer">00:30</div>
+                <div style="color: #969696; font-size: 0.85em; margin-top: 8px;">Espera antes de intentar nuevamente</div>
+            </div>
+            <input type="password" class="modal-input" id="passwordInput" placeholder="Contraseña">
+            <div class="attempts-remaining" id="attemptsRemaining">Intentos restantes: 3</div>
+            <div class="modal-actions">
+                <button class="btn" onclick="submitPassword()" id="submitPasswordBtn">Acceder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Modal para nuevo ticket -->
+    <div class="modal" id="ticketModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">Crear Nuevo Ticket de Soporte</div>
+            <input type="text" class="modal-input" id="ticketTitle" placeholder="Título del ticket" maxlength="100">
+            <textarea class="modal-textarea" id="ticketDescription" placeholder="Describe tu problema o sugerencia..."></textarea>
+            <select class="modal-select" id="ticketCategory">
+                <option value="bug">Bug / Error</option>
+                <option value="feature">Sugerencia / Nueva función</option>
+                <option value="help">Ayuda / Soporte</option>
+                <option value="other">Otro</option>
+            </select>
+            <select class="modal-select" id="ticketPriority">
+                <option value="low">Prioridad Baja</option>
+                <option value="medium" selected>Prioridad Media</option>
+                <option value="high">Prioridad Alta</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeTicketModal()">Cancelar</button>
+                <button class="btn" onclick="submitTicket()">Crear Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para chat de ticket -->
+    <div class="modal" id="ticketChatModal">
+        <div class="modal-content" style="max-width: 700px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="display: flex; align-items: center; gap: 10px;">
+                <i data-feather="message-square" style="width: 20px; height: 20px;"></i>
+                <span id="ticketChatTitle">Ticket</span>
+                <button class="btn btn-secondary" onclick="closeTicketChat()" style="margin-left: auto; padding: 4px 10px; font-size: 0.9em;">Cerrar</button>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; padding: 10px; background: #252525; border-radius: 4px;">
+                <div style="display: flex; gap: 15px; font-size: 0.85em; color: #999;">
+                    <span>Estado: <span id="ticketChatStatus" style="font-weight: bold;"></span></span>
+                    <span>Categoría: <span id="ticketChatCategory"></span></span>
+                    <span>Prioridad: <span id="ticketChatPriority"></span></span>
+                </div>
+                <div style="font-size: 0.9em; color: #ccc;" id="ticketChatDescription"></div>
+            </div>
+
+            <div id="ticketChatMessages" style="flex: 1; overflow-y: auto; padding: 10px; background: #1a1a1a; border-radius: 4px; min-height: 300px; max-height: 400px; display: flex; flex-direction: column; gap: 10px;">
+                <!-- Mensajes aquí -->
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <textarea id="ticketChatInput" placeholder="Escribe tu mensaje..." style="flex: 1; padding: 10px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 4px; color: #d4d4d4; resize: none; height: 60px; font-family: inherit; font-size: 0.9em;" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendTicketMessage(); }"></textarea>
+                <button class="btn" onclick="sendTicketMessage()" style="align-self: flex-end; padding: 10px 20px;">
+                    <i data-feather="send" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Notification -->
+    <div class="chat-notification" id="chatNotification">
+        <button class="chat-notification-close" onclick="closeChatNotification()">×</button>
+        <div class="chat-notification-header">
+            <i data-feather="message-circle"></i>
+            <span>Nuevo mensaje</span>
+        </div>
+        <div class="chat-notification-user" id="notificationUser"></div>
+        <div class="chat-notification-message" id="notificationMessage"></div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="contextMenuAction('rename')">
+            <i data-feather="edit-2"></i>
+            <span>Renombrar</span>
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('setPassword')" id="setPasswordOption">
+            <i data-feather="lock"></i>
+            <span>Establecer contraseña</span>
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('removePassword')" id="removePasswordOption" style="display: none;">
+            <i data-feather="unlock"></i>
+            <span>Quitar contraseña</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item danger" onclick="contextMenuAction('delete')">
+            <i data-feather="trash-2"></i>
+            <span>Eliminar</span>
+        </div>
+    </div>
+
+    <!-- Modal para establecer contraseña del workspace -->
+    <div class="modal" id="setWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-feather="lock" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                <span>Proteger Workspace</span>
+            </div>
+            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
+                Establece una contraseña para proteger este workspace. Todos los usuarios necesitarán la contraseña para acceder.
+            </p>
+            <input type="password" class="modal-input" id="newWorkspacePassword" placeholder="Nueva contraseña">
+            <input type="password" class="modal-input" id="confirmWorkspacePassword" placeholder="Confirmar contraseña">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeSetWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmSetWorkspacePassword()">Establecer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para cambiar contraseña del workspace -->
+    <div class="modal" id="changeWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-feather="key" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                <span>Cambiar Contraseña</span>
+            </div>
+            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
+                Introduce la contraseña actual y establece una nueva contraseña.
+            </p>
+            <input type="password" class="modal-input" id="currentPasswordChange" placeholder="Contraseña actual">
+            <input type="password" class="modal-input" id="newPasswordChange" placeholder="Nueva contraseña">
+            <input type="password" class="modal-input" id="confirmPasswordChange" placeholder="Confirmar nueva contraseña">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeChangeWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmChangeWorkspacePassword()">Cambiar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para quitar contraseña del workspace -->
+    <div class="modal" id="removeWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-feather="unlock" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                <span>Quitar Protección</span>
+            </div>
+            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
+                Introduce la contraseña actual para quitar la protección de este workspace.
+            </p>
+            <input type="password" class="modal-input" id="currentWorkspacePassword" placeholder="Contraseña actual">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRemoveWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmRemoveWorkspacePassword()">Quitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para quitar contraseña -->
+    <div class="modal" id="removePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Quitar Contraseña</h3>
+                <button class="modal-close" onclick="closeRemovePasswordModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Introduce la contraseña actual para quitar la protección:</p>
+                <input type="password" id="currentPassword" placeholder="Contraseña actual" class="modal-input">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeRemovePasswordModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmRemovePassword()">Quitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para subir archivos -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content" style="min-width: 500px; max-width: 600px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i data-feather="upload" style="width: 20px; height: 20px; margin-right: 8px;"></i>Subir Archivos</span>
+                <button class="modal-close" onclick="closeUploadModal()" style="background: none; border: none; color: #969696; cursor: pointer; font-size: 24px;">×</button>
+            </div>
+            
+            <div id="uploadAreaContainer">
+                <div class="upload-area" id="uploadArea" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="showUploadOptions()">
+                    <div class="icon">
+                        <i data-feather="upload-cloud"></i>
+                    </div>
+                    <h3>Arrastra archivos o carpetas aquí</h3>
+                    <p>o haz clic para seleccionar</p>
+                </div>
+
+                <div class="upload-options" style="display: none;" id="uploadOptions">
+                    <button class="upload-option-btn" onclick="selectFiles()">
+                        <i data-feather="file"></i>
+                        Seleccionar Archivos
+                    </button>
+                    <button class="upload-option-btn" onclick="selectFolder()">
+                        <i data-feather="folder"></i>
+                        Seleccionar Carpeta
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lista de archivos a subir -->
+            <div id="uploadFileList" style="display: none;">
+                <h4 style="color: #cccccc; margin-bottom: 15px; font-size: 0.95em;">Archivos a subir:</h4>
+                <div id="fileListContainer" style="max-height: 300px; overflow-y: auto; background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 4px; padding: 10px; margin-bottom: 20px;">
+                    <!-- Se llenará con JavaScript -->
+                </div>
+                <p style="color: #969696; font-size: 0.85em; margin-bottom: 20px;">
+                    Total: <span id="fileCount">0</span> archivo(s)
+                </p>
+            </div>
+
+            <!-- Inputs ocultos para subir archivos -->
+            <input type="file" id="fileUploadInput" style="display: none;" multiple>
+            <input type="file" id="folderUploadInput" style="display: none;" webkitdirectory directory>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
+                <button class="btn" id="uploadConfirmBtn" style="display: none;" onclick="confirmUpload()">
+                    <i data-feather="upload" style="width: 14px; height: 14px;"></i>
+                    Subir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para verificar contraseña al abrir archivo -->
+    <div class="modal" id="unlockFileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Archivo Protegido</h3>
+                <button class="modal-close" onclick="closeUnlockModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Este archivo está protegido con contraseña:</p>
+                <input type="password" id="unlockPassword" placeholder="Contraseña" class="modal-input">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeUnlockModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmUnlock()">Abrir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal personalizado para alertas y confirmaciones -->
+    <div class="modal" id="customAlertModal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 id="customAlertTitle" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="alert-circle" id="customAlertIcon" style="width: 20px; height: 20px;"></i>
+                    <span id="customAlertTitleText">Mensaje</span>
+                </h3>
+                <button class="modal-close" onclick="closeCustomAlert()">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="customAlertMessage" style="color: #d4d4d4; line-height: 1.6; white-space: pre-wrap;"></p>
+            </div>
+            <div class="modal-footer" id="customAlertFooter">
+                <button class="btn" onclick="closeCustomAlert()" id="customAlertOkBtn">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para input de texto (prompt) -->
+    <div class="modal" id="customPromptModal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 id="customPromptTitle">Ingresa un valor</h3>
+                <button class="modal-close" onclick="closeCustomPrompt(null)">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="customPromptMessage" style="margin-bottom: 15px; color: #d4d4d4;"></p>
+                <input type="text" id="customPromptInput" class="modal-input" style="width: 100%;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeCustomPrompt(null)">Cancelar</button>
+                <button class="btn btn-primary" onclick="closeCustomPrompt(document.getElementById('customPromptInput').value)">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    
+    <!-- Modos de lenguajes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/php/php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/ruby/ruby.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/go/go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/rust/rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/dockerfile/dockerfile.min.js"></script>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/workspace.js"></script>
+    
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+    </script>
+</body>
+</html>

@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — CodeSpace</title>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f1117; --surface: #161b22; --card: #1c2128;
+            --border: #30363d; --text: #e6edf3; --muted: #7d8590;
+            --teal: #4ec9b0; --blue: #79c0ff; --purple: #d2a8ff;
+            --red: #ff7b72; --orange: #ffa657; --green: #56d364;
+            --sidebar: 220px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; display: flex;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        body.loaded { opacity: 1; }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar); min-height: 100vh;
+            background: var(--surface); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+        }
+        .sidebar-logo {
+            display: flex; align-items: center; gap: 10px;
+            padding: 18px 20px; border-bottom: 1px solid var(--border);
+            color: var(--teal); font-size: 1.05em; font-weight: 700;
+        }
+        .sidebar-logo svg { width: 18px; height: 18px; }
+        .sidebar-nav { flex: 1; padding: 10px 0; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            width: 100%; padding: 10px 20px; background: none; border: none;
+            color: var(--muted); cursor: pointer; font-size: 0.875em; text-align: left;
+            transition: all 0.15s; position: relative;
+        }
+        .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+        .nav-item.active { color: var(--teal); background: rgba(78,201,176,0.07); }
+        .nav-item.active::before {
+            content: ''; position: absolute; left: 0; top: 4px; bottom: 4px;
+            width: 3px; background: var(--teal); border-radius: 0 2px 2px 0;
+        }
+        .nav-count {
+            margin-left: auto; background: var(--surface);
+            border: 1px solid var(--border); color: var(--muted);
+            font-size: 0.7em; font-weight: 600; padding: 1px 7px;
+            border-radius: 10px;
+        }
+        .sidebar-footer {
+            border-top: 1px solid var(--border); padding: 14px 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .user-avatar {
+            width: 30px; height: 30px; border-radius: 6px;
+            background: linear-gradient(135deg, #4ec9b0, #667eea);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.8em; color: #0f1117; flex-shrink: 0;
+        }
+        .user-details { flex: 1; min-width: 0; }
+        .user-name  { font-size: 0.82em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-email { font-size: 0.73em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .logout-btn {
+            background: none; border: none; color: var(--muted);
+            cursor: pointer; padding: 6px; border-radius: 6px; display: flex; transition: all 0.15s;
+        }
+        .logout-btn svg { width: 15px; height: 15px; }
+        .logout-btn:hover { background: rgba(255,123,114,0.12); color: var(--red); }
+
+        /* MAIN */
+        .main { margin-left: var(--sidebar); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+        .section { display: none; flex-direction: column; gap: 20px; padding: 28px 32px; flex: 1; }
+        .section.active { display: flex; }
+        .section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .section-header h2 { font-size: 1.15em; font-weight: 600; }
+
+        /* STATS */
+        .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+        .stat-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px 18px;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .stat-icon { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .stat-icon svg { width: 17px; height: 17px; }
+        .stat-icon.teal   { background: rgba(78,201,176,0.12);  color: var(--teal); }
+        .stat-icon.blue   { background: rgba(121,192,255,0.12); color: var(--blue); }
+        .stat-icon.purple { background: rgba(210,168,255,0.12); color: var(--purple); }
+        .stat-value { font-size: 1.5em; font-weight: 700; line-height: 1; }
+        .stat-label { font-size: 0.76em; color: var(--muted); margin-top: 4px; }
+
+        /* WORKSPACE GRID */
+        .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+        .ws-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px; cursor: pointer;
+            transition: border-color 0.15s, transform 0.12s;
+            display: flex; flex-direction: column; gap: 10px;
+            text-decoration: none; color: inherit;
+        }
+        .ws-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+        .ws-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .ws-id { font-family: 'SF Mono','Fira Code',monospace; font-size: 0.9em; color: var(--teal); font-weight: 600; word-break: break-all; }
+        .ws-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 8px; font-size: 0.7em; font-weight: 600; flex-shrink: 0; }
+        .ws-badge.owner { background: rgba(78,201,176,0.14); color: var(--teal); }
+        .ws-badge.member { background: rgba(121,192,255,0.14); color: var(--blue); }
+        .ws-badge.locked { background: rgba(210,168,255,0.14); color: var(--purple); }
+        .ws-meta { display: flex; gap: 12px; font-size: 0.78em; color: var(--muted); }
+        .ws-meta span { display: flex; align-items: center; gap: 4px; }
+        .ws-meta svg { width: 11px; height: 11px; }
+        .ws-footer { display: flex; align-items: center; justify-content: space-between; font-size: 0.77em; color: var(--muted); }
+        .ws-open-btn {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: var(--teal); color: #0f1117; border: none;
+            border-radius: 6px; padding: 5px 11px; font-size: 0.8em; font-weight: 600;
+            cursor: pointer; transition: opacity 0.15s;
+        }
+        .ws-open-btn svg { width: 11px; height: 11px; }
+        .ws-open-btn:hover { opacity: 0.82; }
+
+        /* TOOLBAR */
+        .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .search-input {
+            flex: 1; min-width: 180px; background: var(--card);
+            border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 13px; color: var(--text); font-size: 0.875em;
+        }
+        .search-input:focus { outline: none; border-color: var(--teal); }
+        .search-input::placeholder { color: var(--muted); }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--teal); color: #0f1117; border: none;
+            border-radius: 8px; padding: 8px 15px; font-size: 0.85em; font-weight: 600;
+            cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+        }
+        .btn:hover { opacity: 0.82; }
+        .btn svg { width: 13px; height: 13px; }
+        .btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.06); border-color: var(--muted); opacity: 1; }
+
+        /* NEW WORKSPACE */
+        .new-ws-card {
+            background: none; border: 2px dashed var(--border);
+            border-radius: 10px; padding: 32px 16px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            color: var(--muted); font-size: 0.875em; transition: all 0.15s;
+        }
+        .new-ws-card svg { width: 24px; height: 24px; }
+        .new-ws-card:hover { border-color: var(--teal); color: var(--teal); background: rgba(78,201,176,0.04); }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+            color: var(--muted); font-size: 0.9em;
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+        }
+        .empty-state svg { width: 36px; height: 36px; opacity: 0.4; }
+
+        .inbox-list { display: flex; flex-direction: column; gap: 12px; }
+        .notice-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 18px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .notice-card.unread { border-color: var(--orange); box-shadow: 0 0 0 1px rgba(255,166,87,0.12); }
+        .notice-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .notice-title-wrap { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+        .notice-title { font-size: 0.95em; font-weight: 600; color: var(--text); }
+        .notice-subtitle { font-size: 0.78em; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+        .notice-message {
+            color: var(--text); font-size: 0.87em; line-height: 1.5;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 13px;
+        }
+        .notice-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .notice-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .notice-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            border-radius: 999px; padding: 4px 9px;
+            font-size: 0.74em; font-weight: 600;
+            border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+        }
+        .notice-pill.unread { color: #0f1117; background: var(--orange); border-color: transparent; }
+        .notice-pill.priority-high { color: var(--red); }
+        .notice-pill.priority-medium { color: var(--orange); }
+        .notice-pill.priority-low { color: var(--green); }
+        .ticket-modal-box { width: min(92vw, 760px); }
+        .ticket-summary {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            font-size: 0.78em; color: var(--muted);
+            padding: 10px 12px; border: 1px solid var(--border);
+            border-radius: 10px; background: var(--surface); margin-bottom: 14px;
+        }
+        .ticket-thread {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px; min-height: 280px; max-height: 380px;
+            overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+        }
+        .ticket-bubble {
+            max-width: 88%; padding: 10px 12px; border-radius: 12px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .ticket-bubble.user { align-self: flex-end; background: rgba(78,201,176,0.08); border-color: rgba(78,201,176,0.22); }
+        .ticket-bubble.admin { align-self: flex-start; background: rgba(121,192,255,0.08); border-color: rgba(121,192,255,0.22); }
+        .ticket-bubble-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.75em; color: var(--muted); }
+        .ticket-bubble-user { font-weight: 600; color: var(--text); }
+        .ticket-bubble-text { font-size: 0.86em; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+        .ticket-reply { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+        .ticket-reply textarea {
+            width: 100%; min-height: 96px; resize: vertical;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px; color: var(--text); font: inherit;
+        }
+        .ticket-reply textarea:focus { outline: none; border-color: var(--teal); }
+
+        @media (max-width: 900px) {
+            .sidebar { position: static; width: 100%; min-height: auto; }
+            .main { margin-left: 0; }
+            body { flex-direction: column; }
+            .stats-row { grid-template-columns: 1fr; }
+            .section { padding: 22px 18px; }
+            .ticket-bubble { max-width: 100%; }
+        }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal.open { display: flex; }
+        .modal-box {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; width: 90%; max-width: 420px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+        }
+        .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .modal-head h3 { font-size: 0.95em; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.3em; line-height: 1; padding: 2px 6px; border-radius: 4px; }
+        .modal-close:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+        .modal-body { padding: 18px 22px; }
+        .modal-foot { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 0.8em; color: var(--muted); margin-bottom: 6px; }
+        .form-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; color: var(--text); font-size: 0.875em; }
+        .form-input:focus { outline: none; border-color: var(--teal); }
+        .form-hint { font-size: 0.77em; color: var(--muted); margin-top: 5px; }
+
+        /* TOASTS */
+        #toasts { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { padding: 10px 15px; border-radius: 8px; font-size: 0.85em; font-weight: 500; max-width: 320px; box-shadow: 0 4px 18px rgba(0,0,0,0.45); animation: tsIn 0.2s ease-out; pointer-events: auto; }
+        .t-success { background: var(--teal);   color: #0f1117; }
+        .t-error   { background: var(--red);    color: white; }
+        .t-info    { background: var(--blue);   color: #0f1117; }
+        @keyframes tsIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes tsOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="sidebar-logo">
+        <i data-feather="code"></i>
+        <span>CodeSpace</span>
+    </div>
+    <div class="sidebar-nav">
+        <button class="nav-item active" onclick="switchSection('overview', this)">
+            <i data-feather="grid"></i><span>Inicio</span>
+        </button>
+        <button class="nav-item" onclick="switchSection('notifications', this)">
+            <i data-feather="bell"></i><span>Notificaciones</span>
+            <span class="nav-count" id="notificationsCount">0</span>
+        </button>
+        <button class="nav-item" onclick="switchSection('owned', this)">
+            <i data-feather="folder"></i><span>Mis workspaces</span>
+            <span class="nav-count" id="ownedCount">0</span>
+        </button>
+        <button class="nav-item" onclick="switchSection('participated', this)">
+            <i data-feather="users"></i><span>Participados</span>
+            <span class="nav-count" id="participatedCount">0</span>
+        </button>
+    </div>
+    <div class="sidebar-footer">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-details">
+            <div class="user-name"  id="userName">Usuario</div>
+            <div class="user-email" id="userEmail">—</div>
+        </div>
+        <button class="logout-btn" title="Cerrar sesión" onclick="logout()">
+            <i data-feather="log-out"></i>
+        </button>
+    </div>
+</nav>
+
+<main class="main">
+
+    <!-- OVERVIEW -->
+    <section class="section active" id="overviewSection">
+        <div class="section-header">
+            <h2>Bienvenido, <span id="greetName">—</span></h2>
+            <button class="btn" onclick="openNewWsModal()">
+                <i data-feather="plus"></i> Nuevo workspace
+            </button>
+        </div>
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon teal"><i data-feather="folder"></i></div>
+                <div><div class="stat-value" id="statOwned">—</div><div class="stat-label">Workspaces propios</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i data-feather="users"></i></div>
+                <div><div class="stat-value" id="statParticipated">—</div><div class="stat-label">Participaciones</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple"><i data-feather="hard-drive"></i></div>
+                <div><div class="stat-value" id="statStorage">—</div><div class="stat-label">Almacenamiento total</div></div>
+            </div>
+        </div>
+        <div>
+            <div style="font-size:0.85em;color:var(--muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Recientes</div>
+            <div class="ws-grid" id="recentGrid">
+                <div style="color:var(--muted);font-size:0.875em;padding:20px 0;">Cargando…</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- NOTIFICACIONES -->
+    <section class="section" id="notificationsSection">
+        <div class="section-header">
+            <h2>Buzón de notificaciones</h2>
+            <button class="btn btn-ghost" onclick="loadInbox(true)">
+                <i data-feather="refresh-cw"></i> Actualizar
+            </button>
+        </div>
+        <div class="toolbar">
+            <input class="search-input" type="text" id="notificationSearch" placeholder="Buscar por ticket o workspace…" oninput="filterNotifications()">
+        </div>
+        <div class="inbox-list" id="notificationList">
+            <div style="color:var(--muted);font-size:0.875em;padding:20px 0;">Cargando buzón…</div>
+        </div>
+    </section>
+
+    <!-- MIS WORKSPACES -->
+    <section class="section" id="ownedSection">
+        <div class="section-header">
+            <h2>Mis workspaces</h2>
+            <button class="btn" onclick="openNewWsModal()">
+                <i data-feather="plus"></i> Nuevo
+            </button>
+        </div>
+        <div class="toolbar">
+            <input class="search-input" type="text" id="ownedSearch" placeholder="Buscar por ID…" oninput="filterOwned()">
+        </div>
+        <div class="ws-grid" id="ownedGrid">
+            <div style="color:var(--muted);font-size:0.875em;padding:20px 0;">Cargando…</div>
+        </div>
+    </section>
+
+    <!-- PARTICIPADOS -->
+    <section class="section" id="participatedSection">
+        <div class="section-header"><h2>Workspaces participados</h2></div>
+        <div class="toolbar">
+            <input class="search-input" type="text" id="partSearch" placeholder="Buscar por ID…" oninput="filterParticipated()">
+        </div>
+        <div class="ws-grid" id="participatedGrid">
+            <div style="color:var(--muted);font-size:0.875em;padding:20px 0;">Cargando…</div>
+        </div>
+    </section>
+
+</main>
+
+<!-- MODAL: nuevo workspace -->
+<div class="modal" id="newWsModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3>Abrir o crear workspace</h3>
+            <button class="modal-close" onclick="closeNewWsModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">ID del workspace</label>
+                <input class="form-input" type="text" id="newWsId" placeholder="Ej: mi-proyecto-2026"
+                    onkeydown="if(event.key==='Enter') goToWs()">
+                <div class="form-hint">Si no existe, se creará automáticamente. Solo letras, números y guiones.</div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeNewWsModal()">Cancelar</button>
+            <button class="btn" onclick="goToWs()"><i data-feather="arrow-right"></i> Ir al workspace</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ticket inbox -->
+<div class="modal" id="ticketInboxModal">
+    <div class="modal-box ticket-modal-box">
+        <div class="modal-head">
+            <h3 id="ticketInboxTitle">Ticket</h3>
+            <button class="modal-close" onclick="closeInboxTicketModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="ticket-summary" id="ticketInboxSummary"></div>
+            <div class="ticket-thread" id="ticketInboxThread"></div>
+            <div class="ticket-reply">
+                <textarea id="ticketInboxReply" placeholder="Escribe tu respuesta…"></textarea>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="btn btn-ghost" onclick="closeInboxTicketModal()">Cerrar</button>
+                    <button class="btn" onclick="sendInboxReply()"><i data-feather="send"></i> Responder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+let ownedWs = [], participatedWs = [];
+let inboxTickets = [], inboxNotifications = [];
+let currentInboxTicket = null;
+
+// ── NAVIGATION ────────────────────────────────────
+function switchSection(name, btn) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById(name + 'Section').classList.add('active');
+    btn.classList.add('active');
+}
+
+// ── LOAD DATA ─────────────────────────────────────
+async function loadData() {
+    try {
+        const [meRes, wsRes, inboxRes] = await Promise.all([
+            fetch('/api/user/me'),
+            fetch('/api/user/workspaces'),
+            fetch('/api/user/notifications')
+        ]);
+
+        if (!meRes.ok) { window.location.replace('/signin'); return; }
+
+        const me   = await meRes.json();
+        const data = wsRes.ok ? await wsRes.json() : { owned: [], participated: [] };
+        const inbox = inboxRes.ok ? await inboxRes.json() : { tickets: [], notifications: [], unreadCount: 0 };
+
+        // Perfil
+        document.getElementById('userName').textContent  = me.username;
+        document.getElementById('userEmail').textContent = me.email;
+        document.getElementById('userAvatar').textContent = me.username[0].toUpperCase();
+        document.getElementById('greetName').textContent  = me.username;
+
+        ownedWs       = data.owned       || [];
+        participatedWs = data.participated || [];
+        inboxTickets = inbox.tickets || [];
+        inboxNotifications = inbox.notifications || [];
+
+        // Contadores
+        document.getElementById('notificationsCount').textContent = inbox.unreadCount || 0;
+        document.getElementById('ownedCount').textContent       = ownedWs.length;
+        document.getElementById('participatedCount').textContent = participatedWs.length;
+        document.getElementById('statOwned').textContent       = ownedWs.length;
+        document.getElementById('statParticipated').textContent = participatedWs.length;
+
+        const totalStorage = [...ownedWs, ...participatedWs].reduce((s, w) => s + (w.size || 0), 0);
+        document.getElementById('statStorage').textContent = fmtSize(totalStorage);
+
+        renderRecent();
+    renderNotifications();
+        renderOwned();
+        renderParticipated();
+
+        document.body.classList.add('loaded');
+        feather.replace();
+    } catch(e) {
+        console.error(e);
+        window.location.replace('/signin');
+    }
+}
+
+// ── RENDER ────────────────────────────────────────
+function wsCard(ws, role) {
+    const badge = role === 'owner'
+        ? '<span class="ws-badge owner">Propietario</span>'
+        : '<span class="ws-badge member">Miembro</span>';
+    const lock = ws.hasPassword ? '<span class="ws-badge locked"><i data-feather="lock"></i></span>' : '';
+    return '<a class="ws-card" href="/' + ws.id + '">' +
+        '<div class="ws-card-head">' +
+            '<span class="ws-id">' + ws.id + '</span>' +
+            '<div style="display:flex;gap:4px;align-items:center;">' + lock + badge + '</div>' +
+        '</div>' +
+        '<div class="ws-meta">' +
+            '<span><i data-feather="file"></i>' + (ws.fileCount || 0) + ' archivos</span>' +
+            '<span><i data-feather="hard-drive"></i>' + fmtSize(ws.size || 0) + '</span>' +
+        '</div>' +
+        '<div class="ws-footer">' +
+            '<span>' + fmtDate(ws.lastAccess) + '</span>' +
+            '<button class="ws-open-btn" onclick="event.preventDefault();window.location.href=\'/' + ws.id + '\'">' +
+                '<i data-feather="external-link"></i> Abrir' +
+            '</button>' +
+        '</div>' +
+    '</a>';
+}
+
+function newWsCardHtml() {
+    return '<button class="new-ws-card" onclick="openNewWsModal()">' +
+        '<i data-feather="plus-circle"></i>' +
+        '<span>Nuevo workspace</span>' +
+    '</button>';
+}
+
+function emptyState(msg) {
+    return '<div class="empty-state"><i data-feather="inbox"></i><span>' + msg + '</span></div>';
+}
+
+function renderRecent() {
+    const all = [
+        ...ownedWs.map(w => ({ ...w, role: 'owner' })),
+        ...participatedWs.map(w => ({ ...w, role: 'member' }))
+    ].sort((a, b) => (b.lastAccess || 0) - (a.lastAccess || 0)).slice(0, 6);
+
+    const grid = document.getElementById('recentGrid');
+    if (!all.length) {
+        grid.innerHTML = emptyState('Aún no tienes workspaces. Crea el primero.') + newWsCardHtml();
+    } else {
+        grid.innerHTML = all.map(w => wsCard(w, w.role)).join('') + newWsCardHtml();
+    }
+    feather.replace();
+}
+
+function renderNotifications(filter) {
+    const q = (filter || '').toLowerCase().trim();
+    const list = q
+        ? inboxTickets.filter(ticket =>
+            (ticket.title || '').toLowerCase().includes(q) ||
+            (ticket.workspaceId || '').toLowerCase().includes(q)
+        )
+        : inboxTickets;
+
+    const container = document.getElementById('notificationList');
+
+    if (!list.length) {
+        const message = q
+            ? 'No hay tickets que coincidan con la búsqueda.'
+            : 'No tienes tickets ni notificaciones pendientes.';
+        container.innerHTML = emptyState(message);
+        feather.replace();
+        return;
+    }
+
+    container.innerHTML = list.map(ticket => {
+        const lastMessage = ticket.lastMessage;
+        const preview = lastMessage ? escHtml(lastMessage.message) : 'Sin respuestas todavía.';
+        const unread = ticket.unreadCount || 0;
+        const lastAuthor = lastMessage ? (lastMessage.authorName || (lastMessage.isAdmin ? 'Administrador' : 'Tú')) : 'Sin actividad';
+
+        return '<article class="notice-card ' + (unread ? 'unread' : '') + '">' +
+            '<div class="notice-head">' +
+                '<div class="notice-title-wrap">' +
+                    '<div class="notice-title">' + escHtml(ticket.title) + '</div>' +
+                    '<div class="notice-subtitle">' +
+                        '<span>Workspace: ' + escHtml(ticket.workspaceId) + '</span>' +
+                        '<span>' + formatTicketStatus(ticket.status) + '</span>' +
+                        '<span>Actualizado ' + fmtDateTime(ticket.updatedAt || ticket.createdAt) + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<button class="btn btn-ghost" onclick="openInboxTicket(\'' + ticket._id + '\')">Abrir</button>' +
+            '</div>' +
+            '<div class="notice-message">' + preview + '</div>' +
+            '<div class="notice-foot">' +
+                '<div class="notice-tags">' +
+                    '<span class="notice-pill ' + (unread ? 'unread' : '') + '">' +
+                        (unread ? unread + ' nueva' + (unread === 1 ? '' : 's') : 'Al día') +
+                    '</span>' +
+                    '<span class="notice-pill priority-' + escAttr(ticket.priority) + '">Prioridad: ' + escHtml(ticket.priority) + '</span>' +
+                    '<span class="notice-pill">Último mensaje: ' + escHtml(lastAuthor) + '</span>' +
+                '</div>' +
+                '<button class="btn" onclick="openInboxTicket(\'' + ticket._id + '\')"><i data-feather="message-square"></i> Responder</button>' +
+            '</div>' +
+        '</article>';
+    }).join('');
+
+    feather.replace();
+}
+
+function renderOwned(filter) {
+    const q    = (filter || '').toLowerCase();
+    const list = q ? ownedWs.filter(w => w.id.toLowerCase().includes(q)) : ownedWs;
+    const grid = document.getElementById('ownedGrid');
+    if (!list.length) {
+        grid.innerHTML = emptyState(q ? 'No encontrado.' : 'Aún no tienes workspaces propios.') + newWsCardHtml();
+    } else {
+        grid.innerHTML = list.map(w => wsCard(w, 'owner')).join('') + newWsCardHtml();
+    }
+    feather.replace();
+}
+
+function renderParticipated(filter) {
+    const q    = (filter || '').toLowerCase();
+    const list = q ? participatedWs.filter(w => w.id.toLowerCase().includes(q)) : participatedWs;
+    const grid = document.getElementById('participatedGrid');
+    if (!list.length) {
+        grid.innerHTML = emptyState(q ? 'No encontrado.' : 'Aún no has participado en workspaces ajenos.');
+    } else {
+        grid.innerHTML = list.map(w => wsCard(w, 'member')).join('');
+    }
+    feather.replace();
+}
+
+function filterOwned()       { renderOwned(document.getElementById('ownedSearch').value); }
+function filterParticipated(){ renderParticipated(document.getElementById('partSearch').value); }
+function filterNotifications(){ renderNotifications(document.getElementById('notificationSearch').value); }
+
+async function loadInbox(silent) {
+    try {
+        const res = await fetch('/api/user/notifications');
+        if (!res.ok) throw new Error('No se pudo cargar el buzón');
+
+        const inbox = await res.json();
+        inboxTickets = inbox.tickets || [];
+        inboxNotifications = inbox.notifications || [];
+        document.getElementById('notificationsCount').textContent = inbox.unreadCount || 0;
+        renderNotifications(document.getElementById('notificationSearch').value);
+    } catch (error) {
+        console.error(error);
+        if (!silent) showToast('Error al actualizar el buzón', 'error');
+    }
+}
+
+async function openInboxTicket(ticketId) {
+    try {
+        const res = await fetch('/api/tickets/' + ticketId);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo abrir el ticket');
+
+        currentInboxTicket = data;
+
+        const readRes = await fetch('/api/tickets/' + ticketId + '/read', { method: 'POST' });
+        if (readRes.ok) {
+            const readData = await readRes.json();
+            if (readData.ticket) currentInboxTicket = readData.ticket;
+        }
+
+        document.getElementById('ticketInboxTitle').textContent = currentInboxTicket.title;
+        document.getElementById('ticketInboxSummary').innerHTML =
+            '<span>Workspace: <strong style="color:var(--text);">' + escHtml(currentInboxTicket.workspaceId) + '</strong></span>' +
+            '<span>Estado: <strong style="color:var(--text);">' + formatTicketStatus(currentInboxTicket.status) + '</strong></span>' +
+            '<span>Prioridad: <strong style="color:var(--text);">' + escHtml(currentInboxTicket.priority) + '</strong></span>' +
+            '<span>Categoría: <strong style="color:var(--text);">' + escHtml(currentInboxTicket.category) + '</strong></span>';
+
+        renderInboxThread();
+        document.getElementById('ticketInboxReply').value = '';
+        document.getElementById('ticketInboxModal').classList.add('open');
+
+        await loadInbox(true);
+        setTimeout(() => {
+            const thread = document.getElementById('ticketInboxThread');
+            thread.scrollTop = thread.scrollHeight;
+            feather.replace();
+        }, 50);
+    } catch (error) {
+        showToast(error.message || 'Error al abrir el ticket', 'error');
+    }
+}
+
+function renderInboxThread() {
+    const thread = document.getElementById('ticketInboxThread');
+    if (!currentInboxTicket) {
+        thread.innerHTML = '';
+        return;
+    }
+
+    const messages = currentInboxTicket.responses || [];
+    if (!messages.length) {
+        thread.innerHTML = '<div class="empty-state" style="padding:32px 20px;"><i data-feather="message-circle"></i><span>Aún no hay respuestas en este ticket.</span></div>';
+        feather.replace();
+        return;
+    }
+
+    thread.innerHTML = messages.map(message => {
+        const roleClass = message.isAdmin ? 'admin' : 'user';
+        const author = message.authorName || (message.isAdmin ? 'Administrador' : 'Tú');
+        return '<div class="ticket-bubble ' + roleClass + '">' +
+            '<div class="ticket-bubble-head">' +
+                '<span class="ticket-bubble-user">' + escHtml(author) + '</span>' +
+                '<span>' + fmtDateTime(message.timestamp) + '</span>' +
+            '</div>' +
+            '<div class="ticket-bubble-text">' + escHtml(message.message) + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+async function sendInboxReply() {
+    const textarea = document.getElementById('ticketInboxReply');
+    const message = textarea.value.trim();
+
+    if (!message || !currentInboxTicket) return;
+
+    try {
+        const res = await fetch('/api/tickets/' + currentInboxTicket._id + '/response', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo enviar la respuesta');
+
+        currentInboxTicket = data.ticket;
+        textarea.value = '';
+        renderInboxThread();
+        await loadInbox(true);
+        setTimeout(() => {
+            const thread = document.getElementById('ticketInboxThread');
+            thread.scrollTop = thread.scrollHeight;
+        }, 50);
+        showToast('Respuesta enviada', 'success');
+    } catch (error) {
+        showToast(error.message || 'Error al responder', 'error');
+    }
+}
+
+function closeInboxTicketModal() {
+    document.getElementById('ticketInboxModal').classList.remove('open');
+    currentInboxTicket = null;
+    document.getElementById('ticketInboxReply').value = '';
+}
+
+// ── NEW WORKSPACE MODAL ───────────────────────────
+function openNewWsModal() {
+    document.getElementById('newWsId').value = '';
+    document.getElementById('newWsModal').classList.add('open');
+    setTimeout(() => document.getElementById('newWsId').focus(), 50);
+    feather.replace();
+}
+function closeNewWsModal() { document.getElementById('newWsModal').classList.remove('open'); }
+
+function goToWs() {
+    const id = document.getElementById('newWsId').value.trim();
+    if (!id) { showToast('Introduce un ID', 'error'); return; }
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) { showToast('Solo letras, números, guiones y guiones bajos', 'error'); return; }
+    window.location.href = '/' + id;
+}
+
+// ── AUTH ──────────────────────────────────────────
+async function logout() {
+    try { await fetch('/api/user/logout', { method: 'POST' }); } catch {}
+    window.location.href = '/';
+}
+
+// ── UTILS ─────────────────────────────────────────
+function showToast(msg, type) {
+    const el = document.createElement('div');
+    el.className = 'toast t-' + (type || 'info');
+    el.textContent = msg;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => {
+        el.style.animation = 'tsOut 0.2s ease-in forwards';
+        setTimeout(() => el.remove(), 200);
+    }, 3000);
+}
+
+function fmtSize(bytes) {
+    if (!bytes) return '0 B';
+    const k = 1024, s = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
+}
+
+function fmtDate(d) {
+    if (!d) return '—';
+    const time = typeof d === 'string' ? new Date(d).getTime() : d;
+    const diff = Date.now() - time;
+    const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), day = Math.floor(diff / 86400000);
+    if (m   < 60) return 'Hace ' + m + 'm';
+    if (h   < 24) return 'Hace ' + h + 'h';
+    if (day < 30) return 'Hace ' + day + 'd';
+    return new Date(time).toLocaleDateString('es-ES');
+}
+
+function fmtDateTime(value) {
+    if (!value) return '—';
+    return new Date(value).toLocaleString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function formatTicketStatus(status) {
+    return ({
+        open: 'Abierto',
+        'in-progress': 'En progreso',
+        resolved: 'Resuelto',
+        closed: 'Cerrado'
+    })[status] || status;
+}
+
+function escHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\n/g, '<br>');
+}
+
+function escAttr(value) {
+    return String(value || '').replace(/[^a-z0-9_-]/gi, '');
+}
+
+feather.replace();
+loadData();
+setInterval(() => {
+    if (!document.hidden) {
+        loadInbox(true);
+    }
+}, 20000);
+</script>
+</body>
+</html>

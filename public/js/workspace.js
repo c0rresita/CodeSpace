@@ -1,6 +1,7 @@
 const socket = io();
 const editor = document.getElementById('editor');
 const editorWrapper = document.getElementById('editorWrapper');
+const editorContent = document.getElementById('editorContent');
 const emptyState = document.getElementById('emptyState');
 const fileTree = document.getElementById('fileTree');
 const editorTabs = document.getElementById('editorTabs');
@@ -13,6 +14,9 @@ const modalInput = document.getElementById('modalInput');
 const toast = document.getElementById('toast');
 const contextMenu = document.getElementById('contextMenu');
 const githubModal = document.getElementById('githubModal');
+const previewModal = document.getElementById('previewModal');
+const previewFrame = document.getElementById('previewFrame');
+const previewBtn = document.getElementById('previewBtn');
 
 // ===== SISTEMA DE MODALES PERSONALIZADOS =====
 
@@ -230,34 +234,103 @@ function updateUserButtonIcon(hasSession, userData = null) {
 // Manejar clic en botón de usuario/login
 function handleUserButtonClick() {
     if (isAdminOrModerator) {
-        // Usuario con sesión - redirigir al panel de admin
         window.open('/admin', '_blank');
     } else {
-        // Usuario sin sesión - redirigir a login
-        window.open('/login', '_blank');
+        // Verificar si el usuario tiene sesión registrada
+        fetch('/api/user/me', { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(userData => {
+                if (userData) {
+                    window.open('/dashboard', '_blank');
+                } else {
+                    window.open('/signin', '_blank');
+                }
+            })
+            .catch(() => window.open('/signin', '_blank'));
     }
+}
+
+function renderTicketLoginRequired() {
+    document.getElementById('ticketsList').innerHTML = `
+        <div style="text-align: center; color: #858585; padding: 24px 18px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+            <i data-feather="lock" style="width: 40px; height: 40px; opacity: 0.55;"></i>
+            <p>Debes iniciar sesión para abrir y responder tickets.</p>
+            <button class="btn" onclick="window.open('/signin', '_blank')" style="font-size:11px;padding:6px 12px;">
+                <i data-feather="log-in"></i> Iniciar sesión
+            </button>
+        </div>
+    `;
+    document.getElementById('ticketsBadge').style.display = 'none';
+    feather.replace();
+}
+
+let authCheckPromise = null;
+
+function loadRegisteredUserSession() {
+    if (authCheckPromise) {
+        return authCheckPromise;
+    }
+
+    authCheckPromise = fetch('/api/user/me', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(userData => {
+            currentAuthenticatedUser = userData;
+            return userData;
+        })
+        .catch(() => {
+            currentAuthenticatedUser = null;
+            return null;
+        })
+        .finally(() => {
+            authCheckPromise = null;
+        });
+
+    return authCheckPromise;
 }
 
 // Cargar tema al iniciar
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedTheme();
     
-    // Verificar si el usuario es admin o moderador
+    // Verificar si el usuario es admin/moderador o usuario registrado
     fetch('/api/admin/user-info')
         .then(res => res.json())
         .then(data => {
             if (data.isAdmin || data.isModerator) {
                 isAdminOrModerator = true;
-                // Actualizar icono a usuario
                 updateUserButtonIcon(true, data);
             } else {
-                // Usuario no tiene sesión
-                updateUserButtonIcon(false);
+                // Verificar si hay sesión de usuario registrado
+                return loadRegisteredUserSession()
+                    .then(userData => {
+                        if (userData && userData.nickname) {
+                            currentAuthenticatedUser = userData;
+                            updateUserButtonIcon(true, userData);
+                            // Auto-establecer nickname como nombre de chat
+                            const nick = userData.nickname;
+                            if (!username || username.length === 0) {
+                                username = nick;
+                                localStorage.setItem(`username_${workspaceId}`, username);
+                                document.getElementById('usernameInput').value = username;
+                                const usernameContainer = document.querySelector('.username-input');
+                                if (usernameContainer) usernameContainer.style.display = 'none';
+                                enableChatInput();
+                                socket.emit('username-change', { oldUsername: '', newUsername: username, workspaceId });
+                            }
+                        } else {
+                            currentAuthenticatedUser = null;
+                            updateUserButtonIcon(false);
+                        }
+                    })
+                    .catch(() => {
+                        currentAuthenticatedUser = null;
+                        updateUserButtonIcon(false);
+                    });
             }
         })
         .catch(() => {
             isAdminOrModerator = false;
-            // Usuario no tiene sesión
+            currentAuthenticatedUser = null;
             updateUserButtonIcon(false);
         });
     
@@ -285,20 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Obtener workspace ID de la URL
 const workspaceId = window.location.pathname.substring(1) || 'main';
 
-// Generar userId y sessionId únicos para tickets
-let userId = localStorage.getItem('user_id');
-let sessionId = sessionStorage.getItem('session_id');
-
-if (!userId) {
-    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('user_id', userId);
-}
-
-if (!sessionId) {
-    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    sessionStorage.setItem('session_id', sessionId);
-}
-
 let currentFile = null;
 let currentFolder = null;
 let fileStructure = {};
@@ -312,9 +371,11 @@ let userPlan = 'FREE';
 let userFeatures = {};
 let currentSidebar = 'files';
 let username = localStorage.getItem(`username_${window.location.pathname.substring(1) || 'main'}`) || '';
+let currentAuthenticatedUser = null;
 let unreadMessages = 0;
 let onlineUsers = new Map();
 let workspacePassword = null;
+let expandedFolders = new Set(); // Carpetas expandidas
 
 // Sistema de intentos de contraseña
 let passwordAttempts = 0;
@@ -1361,6 +1422,32 @@ function enableChatInput() {
     chatInput.disabled = false;
     chatInput.placeholder = 'Escribe un mensaje...';
     sendBtn.disabled = false;
+
+    // Emitir evento typing al escribir
+    let typingTimer = null;
+    let isCurrentlyTyping = false;
+    chatInput.addEventListener('input', () => {
+        if (!username || isVanished) return;
+        if (!isCurrentlyTyping) {
+            isCurrentlyTyping = true;
+            socket.emit('typing', { workspaceId, username, isTyping: true });
+        }
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            isCurrentlyTyping = false;
+            socket.emit('typing', { workspaceId, username, isTyping: false });
+        }, 1500);
+    });
+    // Parar typing al enviar
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            clearTimeout(typingTimer);
+            if (isCurrentlyTyping) {
+                isCurrentlyTyping = false;
+                socket.emit('typing', { workspaceId, username, isTyping: false });
+            }
+        }
+    });
 }
 
 // Deshabilitar input del chat
@@ -1460,6 +1547,49 @@ document.getElementById('usernameInput').addEventListener('keypress', (e) => {
     }
 });
 
+// ===== FUNCIONES DE PERSISTENCIA DE ESTADO =====
+
+// Guardar archivo abierto
+function saveOpenFile(filePath) {
+    if (filePath) {
+        localStorage.setItem(`openFile_${workspaceId}`, filePath);
+    }
+}
+
+// Obtener archivo abierto guardado
+function getOpenFile() {
+    return localStorage.getItem(`openFile_${workspaceId}`);
+}
+
+// Guardar carpeta expandida
+function saveFolderExpanded(folderPath) {
+    const savedFolders = JSON.parse(localStorage.getItem(`expandedFolders_${workspaceId}`) || '[]');
+    if (!savedFolders.includes(folderPath)) {
+        savedFolders.push(folderPath);
+    }
+    localStorage.setItem(`expandedFolders_${workspaceId}`, JSON.stringify(savedFolders));
+    expandedFolders.add(folderPath);
+}
+
+// Guardar carpeta contraída
+function saveFolderCollapsed(folderPath) {
+    const savedFolders = JSON.parse(localStorage.getItem(`expandedFolders_${workspaceId}`) || '[]');
+    const index = savedFolders.indexOf(folderPath);
+    if (index > -1) {
+        savedFolders.splice(index, 1);
+    }
+    localStorage.setItem(`expandedFolders_${workspaceId}`, JSON.stringify(savedFolders));
+    expandedFolders.delete(folderPath);
+}
+
+// Restaurar estado de carpetas expandidas
+function restoreExpandedFolders() {
+    const savedFolders = JSON.parse(localStorage.getItem(`expandedFolders_${workspaceId}`) || '[]');
+    expandedFolders = new Set(savedFolders);
+}
+
+// ===== INICIALIZAR CODEMISOR =====
+
 // Inicializar CodeMirror
 function initCodeMirror() {
     codeMirrorEditor = CodeMirror.fromTextArea(editor, {
@@ -1470,6 +1600,8 @@ function initCodeMirror() {
         lineWrapping: true,
         matchBrackets: true,
         autoCloseBrackets: true,
+        viewportMargin: 500,
+        scrollbarStyle: 'native',
         extraKeys: {
             "Tab": function(cm) {
                 if (cm.somethingSelected()) {
@@ -1480,6 +1612,14 @@ function initCodeMirror() {
             }
         }
     });
+
+    // ResizeObserver para actualizar CodeMirror cuando cambia el tamaño del contenedor
+    const resizeObserver = new ResizeObserver(() => {
+        if (codeMirrorEditor) {
+            codeMirrorEditor.refresh();
+        }
+    });
+    resizeObserver.observe(editorContent);
 
     // Detectar cambios en CodeMirror
     codeMirrorEditor.on('change', (cm, change) => {
@@ -1503,6 +1643,13 @@ function initCodeMirror() {
             });
             
             lastContent = currentContent;
+        }
+    });
+
+    // Manejar resize de ventana para CodeMirror
+    window.addEventListener('resize', () => {
+        if (codeMirrorEditor) {
+            codeMirrorEditor.refresh();
         }
     });
 }
@@ -1936,7 +2083,25 @@ function getIconForFile(filename) {
 // Cargar estructura de archivos
 socket.on('load-structure', (structure) => {
     fileStructure = structure;
+    
+    // Restaurar carpetas expandidas antes de renderizar
+    restoreExpandedFolders();
+    
     renderFileTree();
+    
+    // Restaurar archivo abierto después de renderizar el árbol
+    const savedFile = getOpenFile();
+    if (savedFile) {
+        setTimeout(() => {
+            openFile(savedFile);
+            // Hacer refresh de CodeMirror basado en tiempo
+            setTimeout(() => {
+                if (codeMirrorEditor) {
+                    codeMirrorEditor.refresh();
+                }
+            }, 200);
+        }, 150);
+    }
     
     // Cerrar modal de contraseña si está abierto
     const passwordModal = document.getElementById('accessPasswordModal');
@@ -1973,6 +2138,9 @@ socket.on('load-file', ({ path, content }) => {
     currentFile = path;
     isUpdating = true;
     
+    // Guardar archivo abierto
+    saveOpenFile(path);
+    
     if (codeMirrorEditor) {
         codeMirrorEditor.setValue(content || '');
         
@@ -1981,9 +2149,19 @@ socket.on('load-file', ({ path, content }) => {
         codeMirrorEditor.setOption('mode', mode);
         
         lastContent = content || '';
+        
+        // Actualizar CodeMirror después de cargar contenido
+        codeMirrorEditor.refresh();
     }
     
     isUpdating = false;
+    
+    // Mostrar/ocultar botón Preview según el tipo de archivo
+    if (path && path.endsWith('.html')) {
+        previewBtn.style.display = 'flex';
+    } else {
+        previewBtn.style.display = 'none';
+    }
     
     showEditor();
     updateCurrentFileName();
@@ -2056,6 +2234,35 @@ socket.on('chat-message', (data) => {
 socket.on('chat-message-own', (data) => {
     addChatMessage(data, true);
 });
+
+// Indicador de quién está escribiendo
+const _typingUsers = new Map(); // username → timer
+socket.on('typing', ({ username: typer, isTyping }) => {
+    if (isTyping) {
+        if (_typingUsers.has(typer)) clearTimeout(_typingUsers.get(typer));
+        const timer = setTimeout(() => {
+            _typingUsers.delete(typer);
+            _updateTypingIndicator();
+        }, 3000);
+        _typingUsers.set(typer, timer);
+    } else {
+        if (_typingUsers.has(typer)) {
+            clearTimeout(_typingUsers.get(typer));
+            _typingUsers.delete(typer);
+        }
+    }
+    _updateTypingIndicator();
+});
+
+function _updateTypingIndicator() {
+    const el = document.getElementById('chatTyping');
+    if (!el) return;
+    const names = Array.from(_typingUsers.keys());
+    if (!names.length) { el.textContent = ''; return; }
+    if (names.length === 1) el.textContent = names[0] + ' está escribiendo…';
+    else if (names.length === 2) el.textContent = names[0] + ' y ' + names[1] + ' están escribiendo…';
+    else el.textContent = 'Varios usuarios están escribiendo…';
+}
 
 socket.on('chat-system', (data) => {
     addChatMessage({ type: 'system', message: data.message });
@@ -2174,6 +2381,17 @@ socket.on('ticket-refresh', async (data) => {
             const response = await fetch(`/api/tickets/${data.ticketId}`);
             if (response.ok) {
                 currentTicket = await response.json();
+
+                if (!isAdminOrModerator && currentAuthenticatedUser) {
+                    const readResponse = await fetch(`/api/tickets/${data.ticketId}/read`, { method: 'POST' });
+                    if (readResponse.ok) {
+                        const readData = await readResponse.json();
+                        if (readData.ticket) {
+                            currentTicket = readData.ticket;
+                        }
+                    }
+                }
+
                 renderTicketMessages();
                 
                 // Scroll al final solo si estaba cerca del final
@@ -2284,13 +2502,31 @@ function renderTreeNode(node, container, path) {
             
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'tree-children';
-            childrenContainer.style.display = 'none';
+            
+            // Verificar si esta carpeta debe estar expandida
+            const isExpanded = expandedFolders.has(itemPath);
+            childrenContainer.style.display = isExpanded ? 'block' : 'none';
+            
+            // Si estaba expandida, agregar clase 'expanded' al chevron
+            if (isExpanded) {
+                setTimeout(() => {
+                    const chevron = itemEl.querySelector('.chevron');
+                    if (chevron) chevron.classList.add('expanded');
+                }, 0);
+            }
             
             itemEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const chevron = itemEl.querySelector('.chevron');
-                const isExpanded = chevron.classList.toggle('expanded');
-                childrenContainer.style.display = isExpanded ? 'block' : 'none';
+                const isCurrentlyExpanded = chevron.classList.toggle('expanded');
+                childrenContainer.style.display = isCurrentlyExpanded ? 'block' : 'none';
+                
+                // Guardar estado
+                if (isCurrentlyExpanded) {
+                    saveFolderExpanded(itemPath);
+                } else {
+                    saveFolderCollapsed(itemPath);
+                }
             });
             
             // Drag & Drop para carpetas
@@ -2341,11 +2577,17 @@ function renderTreeNode(node, container, path) {
 function openFile(path) {
     socket.emit('open-file', { workspaceId, path });
     
+    // Guardar archivo abierto
+    saveOpenFile(path);
+    
     // Actualizar selección en el árbol
     document.querySelectorAll('.tree-item').forEach(el => {
-        el.classList.remove('selected');
+        if (el.dataset.path === path) {
+            el.classList.add('selected');
+        } else {
+            el.classList.remove('selected');
+        }
     });
-    event.target.closest('.tree-item').classList.add('selected');
 }
 
 // Mostrar editor
@@ -2353,6 +2595,7 @@ function showEditor() {
     emptyState.style.display = 'none';
     editorWrapper.style.display = 'block';
     if (codeMirrorEditor) {
+        // Actualizar CodeMirror cuando se muestra el editor
         codeMirrorEditor.refresh();
         codeMirrorEditor.focus();
         
@@ -3177,11 +3420,15 @@ function updatePasswordButton() {
     if (workspaceHasPassword) {
         btn.innerHTML = '<i data-feather="shield" style="width: 14px; height: 14px;"></i> Protegido';
         btn.title = 'Workspace protegido - Click para cambiar o quitar contraseña';
-        btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        btn.style.background = 'rgba(78,201,176,0.15)';
+        btn.style.color = 'var(--green, #4ec9b0)';
+        btn.style.border = '1px solid rgba(78,201,176,0.4)';
     } else {
         btn.innerHTML = '<i data-feather="lock" style="width: 14px; height: 14px;"></i> Contraseña';
         btn.title = 'Proteger workspace con contraseña';
         btn.style.background = '';
+        btn.style.color = '';
+        btn.style.border = '';
     }
     
     // Re-inicializar los iconos de Feather
@@ -3458,9 +3705,13 @@ function createFolderPath(folderPath) {
         }
         
         // Crear la carpeta
+        const fpParts = folderPath.split('/');
+        const fpName = fpParts.pop();
+        const fpParent = fpParts.join('/');
         socket.emit('create-folder', { 
             workspaceId, 
-            name: folderPath 
+            name: fpName,
+            parentPath: fpParent || undefined
         });
         
         // Esperar confirmación
@@ -3474,10 +3725,16 @@ async function uploadFileContent(file, fullPath) {
         const content = await readFileAsText(file);
         
         return new Promise((resolve) => {
+            // Separar nombre de archivo de su carpeta padre
+            const pathParts = fullPath.split('/');
+            const fileName = pathParts.pop();
+            const parentPath = pathParts.join('/') || undefined;
+
             // Crear el archivo usando socket
             socket.emit('create-file', { 
                 workspaceId, 
-                name: fullPath 
+                name: fileName,
+                parentPath
             });
             
             // Esperar un momento para que se cree el archivo
@@ -3537,9 +3794,21 @@ document.addEventListener('keydown', (e) => {
 // Cargar tickets
 async function loadTickets() {
     try {
-        const response = await fetch(`/api/tickets/workspace/${workspaceId}?userId=${userId}&sessionId=${sessionId}`);
+        if (!isAdminOrModerator && !currentAuthenticatedUser) {
+            const userData = await loadRegisteredUserSession();
+            if (!userData) {
+                renderTicketLoginRequired();
+                return;
+            }
+        }
+
+        const response = await fetch(`/api/tickets/workspace/${workspaceId}`);
         
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                renderTicketLoginRequired();
+                return;
+            }
             throw new Error('Error al cargar tickets');
         }
         
@@ -3639,6 +3908,12 @@ function updateTicketsBadge() {
 
 // Mostrar modal para nuevo ticket
 function showNewTicketModal() {
+    if (!currentAuthenticatedUser) {
+        showToast('Debes iniciar sesión para crear tickets');
+        window.open('/signin', '_blank');
+        return;
+    }
+
     document.getElementById('ticketModal').classList.add('show');
     document.getElementById('ticketTitle').value = '';
     document.getElementById('ticketDescription').value = '';
@@ -3696,8 +3971,6 @@ async function submitTicket() {
             },
             body: JSON.stringify({
                 workspaceId,
-                userId,
-                sessionId,
                 title,
                 description,
                 category,
@@ -3749,6 +4022,16 @@ async function viewTicketDetail(ticketId) {
         document.getElementById('ticketChatCategory').textContent = currentTicket.category;
         document.getElementById('ticketChatPriority').textContent = currentTicket.priority;
         document.getElementById('ticketChatDescription').textContent = currentTicket.description;
+
+        if (!isAdminOrModerator && currentAuthenticatedUser) {
+            const readResponse = await fetch(`/api/tickets/${ticketId}/read`, { method: 'POST' });
+            if (readResponse.ok) {
+                const readData = await readResponse.json();
+                if (readData.ticket) {
+                    currentTicket = readData.ticket;
+                }
+            }
+        }
         
         // Renderizar mensajes
         renderTicketMessages();
@@ -3782,11 +4065,12 @@ function renderTicketMessages() {
             hour: '2-digit',
             minute: '2-digit'
         });
+        const authorName = response.authorName || (response.isAdmin ? 'Administrador' : 'Tú');
         
         return `
             <div class="ticket-message ${response.isAdmin ? 'admin' : ''}">
                 <div class="ticket-message-header">
-                    <span class="ticket-message-user">${response.isAdmin ? 'Administrador' : 'Tú'}</span>
+                    <span class="ticket-message-user">${authorName}</span>
                     <span class="ticket-message-time">${time}</span>
                 </div>
                 <div class="ticket-message-text">${response.message}</div>
@@ -3815,11 +4099,7 @@ async function sendTicketMessage() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                userId,
-                message,
-                isAdmin: false
-            })
+            body: JSON.stringify({ message })
         });
         
         const data = await response.json();
@@ -3856,4 +4136,81 @@ function closeTicketChat() {
     document.getElementById('ticketChatModal').classList.remove('show');
     currentTicket = null;
     document.getElementById('ticketChatInput').value = '';
+}
+
+// ===== FUNCIONES DE PREVIEW DE HTML =====
+
+function showHtmlPreview() {
+    if (!currentFile) {
+        showCustomAlert('Por favor selecciona un archivo', 'Aviso');
+        return;
+    }
+    
+    // Verificar si es un archivo HTML
+    if (!currentFile.endsWith('.html')) {
+        showCustomAlert('Solo se pueden previsualizar archivos HTML', 'Tipo de archivo no soportado');
+        return;
+    }
+    
+    const htmlContent = codeMirrorEditor.getValue();
+    const fileName = currentFile.split('/').pop();
+    
+    // Actualizar título del preview
+    document.getElementById('previewTitle').textContent = `Vista Previa - ${fileName}`;
+    
+    // Mostrar el modal
+    previewModal.style.display = 'flex';
+    
+    // Cargar el contenido en el iframe
+    loadPreviewContent(htmlContent, fileName);
+}
+
+function closeHtmlPreview() {
+    previewModal.style.display = 'none';
+    previewFrame.srcdoc = '';
+}
+
+function loadPreviewContent(htmlContent, fileName) {
+    const baseName = fileName.replace('.html', '');
+    
+    // Crear HTML que vamos a usar
+    let previewHtml = htmlContent;
+    
+    // Intentar buscar e inyectar CSS/JS que puede estar en el archivo structure
+    // Si la referencia local a .css o .js no funciona, inyectamos el contenido directamente
+    
+    // Buscar referencias de CSS en el HTML
+    const cssRegex = /<link[^>]+href=["']([^"']+)["'][^>]*>/gi;
+    let cssMatches;
+    
+    while ((cssMatches = cssRegex.exec(htmlContent)) !== null) {
+        const href = cssMatches[1];
+        // Si es una referencia local (no externa como http o //)
+        if (!href.startsWith('http') && !href.startsWith('//')) {
+            // Añadir estilos inline como fallback si falla la referencia
+            const styleComment = `<!-- CSS: ${href} -->`;
+            previewHtml = previewHtml.replace(cssMatches[0], styleComment);
+        }
+    }
+    
+    // Buscar referencias de JS en el HTML
+    const jsRegex = /<script[^>]+src=["']([^"']+)["'][^>]*><\/script>/gi;
+    let jsMatches;
+    
+    while ((jsMatches = jsRegex.exec(htmlContent)) !== null) {
+        const src = jsMatches[1];
+        // Si es una referencia local
+        if (!src.startsWith('http') && !src.startsWith('//')) {
+            // Mantener la referencia pero será relativa al HTML
+            // El navegador intentará cargarla
+        }
+    }
+    
+    // Agregar meta tag para viewport
+    if (!previewHtml.includes('viewport')) {
+        previewHtml = previewHtml.replace('<head>', '<head>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    }
+    
+    // Cargar en el iframe
+    previewFrame.srcdoc = previewHtml;
 }

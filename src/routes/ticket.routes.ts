@@ -4,19 +4,38 @@ import { requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
+function isAdminSession(req: Request): boolean {
+    return Boolean(req.session && (req.session.isAdmin || req.session.isModerator));
+}
+
+function canAccessTicket(req: Request, ticket: any): boolean {
+    if (isAdminSession(req)) {
+        return true;
+    }
+
+    return Boolean(req.session?.userId && ticket.userId === req.session.userId);
+}
+
 // Crear un nuevo ticket
 router.post('/create', async (req: Request, res: Response) => {
     try {
-        const { workspaceId, userId, sessionId, title, description, category, priority } = req.body;
+        if (!req.session?.userId) {
+            return res.status(401).json({ error: 'Debes iniciar sesión para crear tickets' });
+        }
 
-        if (!workspaceId || !userId || !sessionId || !title || !description) {
+        const { workspaceId, title, description, category, priority } = req.body;
+
+        if (!workspaceId || !title || !description) {
             return res.status(400).json({ error: 'Faltan campos requeridos' });
         }
 
         const ticket = await ticketService.createTicket({
             workspaceId,
-            userId,
-            sessionId,
+            userId: req.session.userId,
+            userEmail: req.session.userEmail,
+            userUsername: req.session.userUsername,
+            userNickname: req.session.userNickname,
+            sessionId: req.sessionID,
             title,
             description,
             category: category || 'other',
@@ -34,12 +53,15 @@ router.post('/create', async (req: Request, res: Response) => {
 router.get('/workspace/:workspaceId', async (req: Request, res: Response) => {
     try {
         const { workspaceId } = req.params;
-        const { userId, sessionId } = req.query;
+
+        if (!req.session?.userId && !isAdminSession(req)) {
+            return res.status(401).json({ error: 'Debes iniciar sesión para ver tus tickets' });
+        }
 
         const tickets = await ticketService.getWorkspaceTickets(
             workspaceId,
-            userId as string,
-            sessionId as string
+            req.session?.userId,
+            isAdminSession(req)
         );
 
         res.json(tickets);
@@ -59,6 +81,10 @@ router.get('/:ticketId', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Ticket no encontrado' });
         }
 
+        if (!canAccessTicket(req, ticket)) {
+            return res.status(403).json({ error: 'No tienes acceso a este ticket' });
+        }
+
         res.json(ticket);
     } catch (error) {
         console.error('Error obteniendo ticket:', error);
@@ -66,25 +92,73 @@ router.get('/:ticketId', async (req: Request, res: Response) => {
     }
 });
 
+// Marcar respuestas como leídas
+router.post('/:ticketId/read', async (req: Request, res: Response) => {
+    try {
+        const { ticketId } = req.params;
+        const ticket = await ticketService.getTicketById(ticketId);
+
+        if (!ticket) {
+            return res.status(404).json({ error: 'Ticket no encontrado' });
+        }
+
+        if (!canAccessTicket(req, ticket)) {
+            return res.status(403).json({ error: 'No tienes acceso a este ticket' });
+        }
+
+        const updatedTicket = await ticketService.markTicketResponsesAsRead(
+            ticketId,
+            isAdminSession(req) ? 'admin' : 'user'
+        );
+
+        res.json({ success: true, ticket: updatedTicket });
+    } catch (error) {
+        console.error('Error marcando ticket como leído:', error);
+        res.status(500).json({ error: 'Error al actualizar lectura del ticket' });
+    }
+});
+
 // Agregar respuesta a un ticket
 router.post('/:ticketId/response', async (req: Request, res: Response) => {
     try {
         const { ticketId } = req.params;
-        const { userId, message, isAdmin } = req.body;
+        const { message } = req.body;
 
-        if (!userId || !message) {
+        if (!message) {
             return res.status(400).json({ error: 'Faltan campos requeridos' });
         }
 
+        const existingTicket = await ticketService.getTicketById(ticketId);
+        if (!existingTicket) {
+            return res.status(404).json({ error: 'Ticket no encontrado' });
+        }
+
+        const adminSession = isAdminSession(req);
+        if (!adminSession && !req.session?.userId) {
+            return res.status(401).json({ error: 'Debes iniciar sesión para responder tickets' });
+        }
+
+        if (!canAccessTicket(req, existingTicket)) {
+            return res.status(403).json({ error: 'No tienes acceso a este ticket' });
+        }
+
         const ticket = await ticketService.addTicketResponse(ticketId, {
-            userId,
+            userId: adminSession ? (req.session?.userEmail || 'admin') : req.session!.userId!,
             message,
-            isAdmin: isAdmin || false
+            isAdmin: adminSession,
+            authorName: adminSession
+                ? (req.session?.userEmail || 'Administrador')
+                : (req.session?.userNickname || req.session?.userUsername || 'Usuario')
         });
 
         if (!ticket) {
             return res.status(404).json({ error: 'Ticket no encontrado' });
         }
+
+        const updatedTicket = await ticketService.markTicketResponsesAsRead(
+            ticketId,
+            adminSession ? 'admin' : 'user'
+        );
 
         // Emitir evento socket para actualización en tiempo real
         const io = (req as any).io;
@@ -92,7 +166,7 @@ router.post('/:ticketId/response', async (req: Request, res: Response) => {
             io.to(ticket.workspaceId).emit('ticket-refresh', { ticketId });
         }
 
-        res.json({ success: true, ticket });
+        res.json({ success: true, ticket: updatedTicket || ticket });
     } catch (error) {
         console.error('Error agregando respuesta:', error);
         res.status(500).json({ error: 'Error al agregar respuesta' });
@@ -117,6 +191,11 @@ router.patch('/:ticketId/status', requireAdmin, async (req: Request, res: Respon
 
         if (!ticket) {
             return res.status(404).json({ error: 'Ticket no encontrado' });
+        }
+
+        const io = (req as any).io;
+        if (io) {
+            io.to(ticket.workspaceId).emit('ticket-refresh', { ticketId });
         }
 
         res.json({ success: true, ticket });

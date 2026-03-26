@@ -3,1867 +3,730 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeSpace - Workspace</title>
-    
-    <!-- Feather Icons -->
+    <title>CodeSpace</title>
+
     <script src="https://unpkg.com/feather-icons"></script>
-    
-    <!-- Devicon para iconos de lenguajes -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
-    
-    <!-- CodeMirror CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
-    
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ── VARIABLES ─────────────────────────────────── */
+        :root {
+            --bg-0: #141414;
+            --bg-1: #1e1e1e;
+            --bg-2: #252526;
+            --bg-3: #2d2d30;
+            --bg-4: #3c3c3c;
+            --bg-hover: #2a2d2e;
+            --bg-select: #094771;
+
+            --border: #2e2e2e;
+            --border-soft: #3e3e42;
+
+            --txt: #cccccc;
+            --txt-2: #969696;
+            --txt-3: #858585;
+            --txt-dim: #555;
+
+            --accent: #007acc;
+            --accent-h: #0e90e5;
+            --green: #4ec9b0;
+            --red: #f44747;
+            --yellow: #ffab00;
+            --purple: #c586c0;
+
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --mono: 'Consolas', 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+
+            --r-sm: 4px;
+            --r-md: 6px;
+            --r-lg: 10px;
+
+            --hdr-h: 44px;
+            --sb-h: 22px;
+            --act-w: 46px;
         }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            background: #1e1e1e;
-            height: 100vh;
+            font-family: var(--font);
+            font-size: 13px;
+            background: var(--bg-1);
+            color: var(--txt);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            color: #cccccc;
         }
 
-        /* Barra de título estilo macOS */
-        .titlebar {
-            background: #323233;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            padding: 0 16px;
-            border-bottom: 1px solid #1e1e1e;
-            -webkit-app-region: drag;
-        }
-
-        .titlebar-buttons {
-            display: flex;
-            gap: 8px;
-            margin-right: 16px;
-        }
-
-        .titlebar-button {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            -webkit-app-region: no-drag;
-        }
-
-        .titlebar-button:hover {
-            opacity: 0.7;
-        }
-
-        .titlebar-button.close { background: #ff5f57; }
-        .titlebar-button.minimize { background: #ffbd2e; }
-        .titlebar-button.maximize { background: #28ca42; }
-
-        .titlebar-title {
-            flex: 1;
-            text-align: center;
-            font-size: 13px;
-            color: #969696;
-            font-weight: 400;
-        }
-
-        .titlebar-clock {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 13px;
-            color: #cccccc;
-            font-weight: 500;
-            pointer-events: none;
-        }
-
-        .titlebar-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 12px;
-            color: #969696;
-            margin-left: auto;
-            -webkit-app-region: no-drag;
-        }
-
-        .titlebar-date {
-            color: #cccccc;
-        }
-
-        .theme-toggle {
-            background: transparent;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            padding: 4px 8px;
-            cursor: pointer;
-            color: #cccccc;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: background 0.2s;
-        }
-
-        .theme-toggle:hover {
-            background: #3e3e42;
-        }
-
-        /* Header */
+        /* ── HEADER ─────────────────────────────────────── */
         .header {
-            background: #2d2d30;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #1e1e1e;
-        }
-
-        .header-left {
+            height: var(--hdr-h);
+            background: var(--bg-3);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            gap: 16px;
-        }
-
-        .logo {
-            font-size: 1.2em;
-            font-weight: 500;
-            color: #cccccc;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .logo svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .file-name {
-            color: #969696;
-            font-size: 0.95em;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .users-count {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
-            color: #969696;
-        }
-
-        .users-indicator {
-            width: 8px;
-            height: 8px;
-            background: #4ec9b0;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .btn {
-            background: #0e639c;
-            color: #ffffff;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-            font-family: inherit;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn:hover {
-            background: #1177bb;
-        }
-
-        .btn:active {
-            background: #0d5a8f;
-        }
-
-        /* Contenedor principal */
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .sidebar-container {
-            display: flex;
-            position: relative;
-            height: 100%;
-        }
-
-        .activity-bar {
-            width: 48px;
-            background: #333333;
-            border-right: 1px solid #3e3e42;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 10px;
             gap: 10px;
-        }
-
-        .activity-bar-item {
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: #858585;
-            border-left: 2px solid transparent;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .activity-bar-item:hover {
-            color: #ffffff;
-        }
-
-        .activity-bar-item.active {
-            color: #ffffff;
-            border-left-color: #007acc;
-        }
-
-        .activity-bar-item .badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #007acc;
-            color: white;
-            font-size: 9px;
-            padding: 2px 4px;
-            border-radius: 10px;
-            min-width: 16px;
-            text-align: center;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            min-width: 150px;
-            max-width: 600px;
-            background: #252526;
-            border-right: 1px solid #1e1e1e;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            transition: width 0.2s;
-        }
-
-        .sidebar.collapsed {
-            width: 0;
-            min-width: 0;
-            border: none;
-            overflow: hidden;
-        }
-
-        .sidebar.resizing {
-            transition: none;
-        }
-
-        .sidebar-resize-handle {
-            width: 4px;
-            background: transparent;
-            cursor: col-resize;
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 10;
-        }
-
-        .sidebar-resize-handle:hover {
-            background: #007acc;
-        }
-
-        .sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            display: none;
-            flex-direction: column;
-        }
-
-        .sidebar-content.active {
-            display: flex;
-        }
-
-        .sidebar-header {
-            padding: 12px 16px;
-            background: #2d2d30;
-            border-bottom: 1px solid #1e1e1e;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .sidebar-title {
-            font-size: 0.75em;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #969696;
-            font-weight: 600;
-        }
-
-        .workspace-info {
-            font-size: 0.7em;
-            color: #6e6e6e;
-            margin-top: 4px;
-        }
-
-        .sidebar-actions {
-            display: flex;
-            gap: 4px;
-        }
-
-        .icon-btn {
-            background: transparent;
-            border: none;
-            color: #969696;
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 4px;
-            font-size: 1.1em;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .icon-btn svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .icon-btn:hover {
-            background: #2a2d2e;
-            color: #cccccc;
-        }
-
-        .file-tree {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 0;
-        }
-
-        .tree-item {
-            padding: 6px 16px 6px 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: background 0.15s;
-            user-select: none;
-            color: #cccccc;
-            font-size: 0.9em;
-        }
-
-        .tree-item:hover {
-            background: #2a2d2e;
-        }
-
-        .tree-item.selected {
-            background: #094771;
-            color: #ffffff;
-        }
-
-        .tree-item.folder {
-            font-weight: 500;
-        }
-
-        .tree-item.dragging {
-            opacity: 0.5;
-        }
-
-        .tree-item.drag-over {
-            background: #094771;
-        }
-
-        .tree-item .icon {
-            font-size: 1em;
-            width: 16px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tree-item .icon svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        .tree-item .chevron {
-            font-size: 0.8em;
-            transition: transform 0.2s;
-            width: 12px;
-        }
-
-        .tree-item .chevron.expanded {
-            transform: rotate(90deg);
-        }
-
-        .tree-children {
-            margin-left: 16px;
-        }
-
-        /* Editor */
-        .editor-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #1e1e1e;
-            overflow: hidden;
-        }
-
-        .editor-tabs {
-            background: #2d2d30;
-            border-bottom: 1px solid #1e1e1e;
-            display: flex;
-            align-items: center;
-            min-height: 35px;
-            overflow-x: auto;
-        }
-
-        .editor-tab {
-            padding: 8px 16px;
-            background: #2d2d30;
-            border-right: 1px solid #1e1e1e;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85em;
-            color: #969696;
-            transition: background 0.15s;
-        }
-
-        .editor-tab:hover {
-            background: #2a2d2e;
-        }
-
-        .editor-tab.active {
-            background: #1e1e1e;
-            color: #ffffff;
-        }
-
-        .editor-tab .close-tab {
-            opacity: 0;
-            font-size: 1.2em;
-            padding: 0 4px;
-        }
-
-        .editor-tab:hover .close-tab,
-        .editor-tab.active .close-tab {
-            opacity: 1;
-        }
-
-        .editor-wrapper {
-            flex: 1;
-            overflow: hidden;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .editor-toolbar {
-            background: #2d2d30;
-            border-bottom: 1px solid #3e3e42;
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            padding: 0 14px;
             flex-shrink: 0;
-        }
-
-        .toolbar-btn {
-            background: transparent;
-            border: 1px solid #3e3e42;
-            color: #cccccc;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .toolbar-btn:hover {
-            background: #3e3e42;
-            border-color: #569cd6;
-        }
-
-        .toolbar-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .toolbar-separator {
-            width: 1px;
-            height: 20px;
-            background: #3e3e42;
-            margin: 0 4px;
-        }
-
-        .toolbar-select {
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            color: #cccccc;
-            padding: 6px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            outline: none;
-            transition: all 0.2s;
-        }
-
-        .toolbar-select:hover {
-            border-color: #569cd6;
-        }
-
-        .toolbar-select option {
-            background: #2d2d30;
-            color: #cccccc;
-        }
-
-        .editor-content {
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .CodeMirror {
-            height: 100% !important;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
-            font-size: 14px !important;
-            background: #1e1e1e !important;
-            color: #d4d4d4 !important;
-        }
-
-        .CodeMirror-gutters {
-            background: #1e1e1e !important;
-            border-right: 1px solid #3e3e42 !important;
-        }
-
-        .CodeMirror-linenumber {
-            color: #858585 !important;
-        }
-
-        .CodeMirror-cursor {
-            border-left-color: #d4d4d4 !important;
-        }
-
-        .CodeMirror-selected {
-            background: #264f78 !important;
-        }
-
-        .CodeMirror-line::selection,
-        .CodeMirror-line > span::selection,
-        .CodeMirror-line > span > span::selection {
-            background: #264f78 !important;
-        }
-
-        #editor {
-            flex: 1;
-            padding: 20px;
-            font-size: 14px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            border: none;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            resize: none;
-            outline: none;
-            line-height: 1.6;
-        }
-
-        #editor::selection {
-            background: #264f78;
-        }
-
-        .empty-state {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #969696;
-            gap: 16px;
-        }
-
-        .empty-state .icon {
-            font-size: 4em;
-            opacity: 0.3;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .empty-state .icon svg {
-            width: 80px;
-            height: 80px;
-        }
-
-        .empty-state p {
-            font-size: 1.1em;
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background: #2d2d30;
-            border-radius: 8px;
-            padding: 24px;
-            min-width: 400px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            border: 1px solid #3e3e42;
-        }
-
-        .modal-header {
-            font-size: 1.1em;
-            margin-bottom: 20px;
-            color: #cccccc;
-            font-weight: 500;
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 10px;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            color: #cccccc;
-            font-size: 0.95em;
-            font-family: inherit;
-            margin-bottom: 20px;
-        }
-
-        .modal-input:focus {
-            outline: none;
-            border-color: #0e639c;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        .btn-secondary {
-            background: #3e3e42;
-            color: #cccccc;
-        }
-
-        .btn-secondary:hover {
-            background: #4e4e52;
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 10px;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            color: #d4d4d4;
-            font-size: 0.95em;
-            margin-bottom: 10px;
-        }
-
-        .modal-input:focus {
-            outline: none;
-            border-color: #4ec9b0;
-        }
-
-        /* Upload Modal */
-        .upload-area {
-            border: 2px dashed #3e3e42;
-            border-radius: 8px;
-            padding: 60px 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #1e1e1e;
-            margin-bottom: 20px;
-        }
-
-        .upload-area:hover {
-            border-color: #0e639c;
-            background: #252526;
-        }
-
-        .upload-area.dragover {
-            border-color: #4ec9b0;
-            background: #252526;
-            border-style: solid;
-        }
-
-        .upload-area .icon {
-            font-size: 3em;
-            color: #4ec9b0;
-            margin-bottom: 15px;
-        }
-
-        .upload-area .icon svg {
-            width: 60px;
-            height: 60px;
-        }
-
-        .upload-area h3 {
-            color: #cccccc;
-            margin-bottom: 10px;
-            font-weight: 500;
-        }
-
-        .upload-area p {
-            color: #969696;
-            font-size: 0.9em;
-        }
-
-        .upload-options {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .upload-option-btn {
-            flex: 1;
-            padding: 12px 20px;
-            background: #3e3e42;
-            border: 1px solid #3e3e42;
-            color: #cccccc;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.2s;
-        }
-
-        .upload-option-btn:hover {
-            background: #4e4e52;
-            border-color: #0e639c;
-        }
-
-        .upload-option-btn svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .file-list-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px;
-            background: #252526;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            color: #cccccc;
-            font-size: 0.9em;
-        }
-
-        .file-list-item svg {
-            width: 16px;
-            height: 16px;
-            color: #4ec9b0;
-        }
-
-        .file-list-item .file-path {
-            flex: 1;
-            color: #cccccc;
-        }
-
-        .file-list-item .file-size {
-            color: #969696;
-            font-size: 0.85em;
-        }
-
-        /* Toast */
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: #2d2d30;
-            color: #cccccc;
-            padding: 12px 20px;
-            border-radius: 6px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s;
-            pointer-events: none;
-            border: 1px solid #3e3e42;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .toast.success {
-            border-color: #4ec9b0;
-        }
-
-        /* Chat Notification */
-        .chat-notification {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: #2d2d30;
-            border: 1px solid #4ec9b0;
-            border-radius: 8px;
-            padding: 15px;
-            max-width: 350px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-            opacity: 0;
-            transform: translateX(400px);
-            transition: all 0.3s;
-            pointer-events: none;
-            z-index: 10000;
-        }
-
-        .chat-notification.show {
-            opacity: 1;
-            transform: translateX(0);
-            pointer-events: all;
-        }
-
-        .chat-notification-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            color: #4ec9b0;
-            font-weight: 500;
-            font-size: 0.9em;
-        }
-
-        .chat-notification-header svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .chat-notification-user {
-            color: #4ec9b0;
-            font-weight: 500;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-        }
-
-        .chat-notification-message {
-            color: #cccccc;
-            font-size: 0.9em;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .chat-notification-close {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: none;
-            border: none;
-            color: #969696;
-            cursor: pointer;
-            font-size: 18px;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chat-notification-close:hover {
-            color: #cccccc;
-        }
-
-        /* Tickets Styles */
-        .tickets-list {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .ticket-card {
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 6px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .ticket-card:hover {
-            background: #37373d;
-            border-color: #007acc;
-        }
-
-        .ticket-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-
-        .ticket-title {
-            font-weight: 600;
-            color: #cccccc;
-            font-size: 0.9em;
-            flex: 1;
-            margin-right: 10px;
-        }
-
-        .ticket-status {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7em;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .ticket-status.open { background: #1e88e5; color: white; }
-        .ticket-status.in-progress { background: #fb8c00; color: white; }
-        .ticket-status.resolved { background: #43a047; color: white; }
-        .ticket-status.closed { background: #616161; color: white; }
-
-        .ticket-meta {
-            display: flex;
-            gap: 12px;
-            font-size: 0.75em;
-            color: #858585;
-            margin-bottom: 6px;
-        }
-
-        .ticket-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .ticket-category {
-            padding: 2px 6px;
-            background: #3e3e42;
-            border-radius: 4px;
-            font-size: 0.75em;
-            color: #4ec9b0;
-        }
-
-        .ticket-description {
-            color: #969696;
-            font-size: 0.8em;
-            line-height: 1.4;
-            margin-top: 6px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .ticket-priority {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7em;
-            font-weight: 600;
-        }
-
-        .ticket-priority.low { background: #2d2d30; color: #4ec9b0; }
-        .ticket-priority.medium { background: #37373d; color: #ffa500; }
-        .ticket-priority.high { background: #5a1d1d; color: #f48771; }
-
-        .ticket-responses-count {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.75em;
-            color: #858585;
-            margin-top: 8px;
-        }
-
-        .modal-textarea {
-            width: 100%;
-            min-height: 100px;
-            background: #3c3c3c;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            padding: 10px;
-            color: #cccccc;
-            font-size: 0.9em;
-            font-family: inherit;
-            resize: vertical;
-            margin-bottom: 12px;
-        }
-
-        .modal-textarea:focus {
-            outline: none;
-            border-color: #007acc;
-        }
-
-        .modal-select {
-            width: 100%;
-            background: #3c3c3c;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            padding: 8px;
-            color: #cccccc;
-            font-size: 0.9em;
-            margin-bottom: 12px;
-        }
-
-        .modal-select:focus {
-            outline: none;
-            border-color: #007acc;
-        }
-
-        /* Mensajes del chat de tickets */
-        .ticket-message {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 10px;
-            background: #252525;
-            border-radius: 6px;
-            border-left: 3px solid #3a3a3a;
-        }
-
-        .ticket-message.admin {
-            background: #1a2332;
-            border-left-color: #007acc;
-        }
-
-        .ticket-message-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.8em;
-            color: #999;
-        }
-
-        .ticket-message-user {
-            font-weight: 600;
-            color: #ccc;
-        }
-
-        .ticket-message.admin .ticket-message-user {
-            color: #4fc3f7;
-        }
-
-        .ticket-message-time {
-            margin-left: auto;
-        }
-
-        .ticket-message-text {
-            color: #d4d4d4;
-            font-size: 0.9em;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        /* Tema Claro */
-        body.light-theme {
-            background: #f3f3f3;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .titlebar {
-            background: #e8e8e8;
-            border-bottom: 1px solid #d0d0d0;
-        }
-
-        body.light-theme .titlebar-button {
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-        }
-
-        body.light-theme .titlebar-clock,
-        body.light-theme .titlebar-date {
-            color: #1e1e1e;
-        }
-
-        body.light-theme .theme-toggle {
-            border-color: #d0d0d0;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .theme-toggle:hover {
-            background: #d0d0d0;
-        }
-
-        body.light-theme .header {
-            background: #ffffff;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        body.light-theme .header-left h1,
-        body.light-theme .header-right {
-            color: #1e1e1e;
-        }
-
-        body.light-theme .header-actions button {
-            background: #f0f0f0;
-            color: #1e1e1e;
-            border: 1px solid #d0d0d0;
-        }
-
-        body.light-theme .header-actions button:hover {
-            background: #e0e0e0;
-        }
-
-        body.light-theme .activity-bar {
-            background: #f3f3f3;
-            border-right: 1px solid #e0e0e0;
-        }
-
-        body.light-theme .activity-bar-item {
-            color: #424242;
-        }
-
-        body.light-theme .activity-bar-item.active,
-        body.light-theme .activity-bar-item:hover {
-            background: #e8e8e8;
-            color: #0e639c;
-        }
-
-        body.light-theme .sidebar {
-            background: #f8f8f8;
-            border-right: 1px solid #e0e0e0;
-        }
-
-        body.light-theme .sidebar-header {
-            color: #1e1e1e;
-            border-bottom: 1px solid #e0e0e0;
-            background: #f8f8f8;
-        }
-
-        body.light-theme .sidebar-title {
-            color: #1e1e1e;
-        }
-
-        body.light-theme .workspace-info {
-            color: #5a5a5a;
-        }
-
-        body.light-theme .tree-item {
-            color: #1e1e1e;
-        }
-
-        body.light-theme .tree-item:hover {
-            background: #e8e8e8;
-        }
-
-        body.light-theme .tree-item.selected {
-            background: #e0e0e0;
-        }
-
-        body.light-theme .resize-handle {
-            background: #e0e0e0;
-        }
-
-        body.light-theme .editor-container {
-            background: #ffffff;
-        }
-
-        body.light-theme .editor-tabs {
-            background: #f3f3f3;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        body.light-theme .editor-tab {
-            background: #f3f3f3;
-            color: #1e1e1e;
-            border-right: 1px solid #e0e0e0;
-        }
-
-        body.light-theme .editor-tab.active {
-            background: #ffffff;
-            color: #0e639c;
-        }
-
-        body.light-theme .editor-tab:hover {
-            background: #e8e8e8;
-        }
-
-        body.light-theme .editor-header {
-            background: #f8f8f8;
-            border-bottom: 1px solid #e0e0e0;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .editor-toolbar {
-            background: #f8f8f8;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        body.light-theme .toolbar-btn {
-            border-color: #d0d0d0;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .toolbar-btn:hover {
-            background: #e8e8e8;
-            border-color: #0078d4;
-        }
-
-        body.light-theme .toolbar-separator {
-            background: #d0d0d0;
-        }
-
-        body.light-theme .toolbar-select {
-            background: #ffffff;
-            border-color: #d0d0d0;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .toolbar-select:hover {
-            border-color: #0078d4;
-        }
-
-        body.light-theme .toolbar-select option {
-            background: #ffffff;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .CodeMirror {
-            background: #ffffff !important;
-            color: #1e1e1e !important;
-        }
-
-        body.light-theme .CodeMirror-gutters {
-            background: #f8f8f8 !important;
-            border-right: 1px solid #e0e0e0 !important;
-        }
-
-        body.light-theme .CodeMirror-linenumber {
-            color: #858585 !important;
-        }
-
-        body.light-theme .modal-overlay {
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        body.light-theme .modal-content {
-            background: #ffffff;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        body.light-theme .modal-content h2 {
-            color: #1e1e1e;
-        }
-
-        body.light-theme .modal-content input {
-            background: #f8f8f8;
-            border: 1px solid #d0d0d0;
-            color: #1e1e1e;
-        }
-
-        body.light-theme .modal-content button {
-            background: #0e639c;
-        }
-
-        body.light-theme .modal-content button:first-child {
-            background: #f0f0f0;
-            color: #1e1e1e;
-        }
-
-        body.light-theme #toast {
-            background: #ffffff;
-            color: #1e1e1e;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        body.light-theme #contextMenu {
-            background: #ffffff;
-            border: 1px solid #d0d0d0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        body.light-theme .context-menu-item {
-            color: #1e1e1e;
-        }
-
-        body.light-theme .context-menu-item:hover {
-            background: #e8e8e8;
-        }
-
-        body.light-theme .chat-notification {
-            background: #ffffff;
-            border: 1px solid #d0d0d0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        body.light-theme .chat-notification-user {
-            color: #0e639c;
-        }
-
-        body.light-theme .chat-notification-message {
-            color: #424242;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #1e1e1e;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #424242;
-            border-radius: 5px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #4e4e4e;
-        }
-
-        /* Context Menu */
-        .context-menu {
-            position: fixed;
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 6px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-            padding: 4px 0;
-            z-index: 2000;
-            display: none;
-            min-width: 180px;
-        }
-
-        .context-menu.show {
-            display: block;
-        }
-
-        .context-menu-item {
-            padding: 8px 16px;
-            cursor: pointer;
-            color: #cccccc;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: background 0.15s;
-        }
-
-        .context-menu-item svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        .context-menu-item:hover {
-            background: #094771;
-        }
-
-        .context-menu-item.danger:hover {
-            background: #5a1d1d;
-            color: #f48771;
-        }
-
-        .context-menu-separator {
-            height: 1px;
-            background: #3e3e42;
-            margin: 4px 0;
-        }
-
-        /* Chat Styles */
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            padding: 10px;
-        }
-
-        .chat-header {
-            padding: 10px 0;
-            border-bottom: 1px solid #3e3e42;
-            margin-bottom: 10px;
-        }
-
-        .chat-header-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        .chat-header h3 {
-            font-size: 0.9em;
-            color: #cccccc;
-            margin: 0;
-            flex: 1;
-        }
-
-        .chat-header-title input {
-            font-size: 0.9em;
-            color: #cccccc;
-            background: #2d2d30;
-            border: 1px solid #4ec9b0;
-            border-radius: 4px;
-            padding: 4px 8px;
-            flex: 1;
-            font-weight: 600;
-        }
-
-        .chat-header-title input:focus {
-            outline: none;
-            border-color: #569cd6;
-        }
-
-        .edit-chat-name-btn {
-            background: none;
-            border: none;
-            color: #858585;
-            cursor: pointer;
-            padding: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color 0.2s;
-        }
-
-        .edit-chat-name-btn:hover {
-            color: #4ec9b0;
-        }
-
-        .username-input {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .username-input input {
-            flex: 1;
-            background: #3c3c3c;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            padding: 6px 10px;
-            color: #cccccc;
-            font-size: 0.85em;
-        }
-
-        .username-input input:focus {
-            outline: none;
-            border-color: #007acc;
-        }
-
-        .username-input button {
-            background: #007acc;
-            border: none;
-            border-radius: 4px;
-            padding: 6px 12px;
-            color: white;
-            cursor: pointer;
-            font-size: 0.85em;
-        }
-
-        .username-input button:hover {
-            background: #005a9e;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            margin-bottom: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .chat-message {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 8px;
-            background: #2d2d30;
-            border-radius: 4px;
-            font-size: 0.85em;
-        }
-
-        .chat-message.own {
-            background: #094771;
-        }
-
-        .chat-message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chat-username {
-            font-weight: 600;
-            color: #4ec9b0;
-        }
-
-        .chat-message.own .chat-username {
-            color: #9cdcfe;
-        }
-
-        .chat-time {
-            font-size: 0.75em;
-            color: #858585;
-        }
-
-        .chat-text {
-            color: #cccccc;
-            word-wrap: break-word;
-        }
-
-        .chat-system {
-            text-align: center;
-            color: #858585;
-            font-size: 0.75em;
-            font-style: italic;
-            padding: 4px;
-        }
-
-        .chat-input-container {
-            display: flex;
-            gap: 8px;
             position: relative;
-        }
-
-        .chat-commands-menu {
-            position: absolute;
-            bottom: 100%;
-            left: 0;
-            right: 0;
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
-
-        .chat-commands-menu.visible {
-            display: block;
-        }
-
-        .command-item {
-            padding: 10px 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-            border-bottom: 1px solid #3e3e42;
-        }
-
-        .command-item:last-child {
-            border-bottom: none;
-        }
-
-        .command-item:hover,
-        .command-item.selected {
-            background: #37373d;
-        }
-
-        .command-name {
-            color: #4ec9b0;
-            font-weight: 600;
-            font-size: 0.9em;
-            margin-bottom: 2px;
-        }
-
-        .command-description {
-            color: #858585;
-            font-size: 0.8em;
-        }
-
-        .chat-input-container input {
-            flex: 1;
-            background: #3c3c3c;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            padding: 8px 12px;
-            color: #cccccc;
-            font-size: 0.85em;
-        }
-
-        .chat-input-container input:focus {
-            outline: none;
-            border-color: #007acc;
-        }
-
-        .chat-input-container button {
-            background: #007acc;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 16px;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .chat-input-container button:hover {
-            background: #005a9e;
-        }
-
-        .online-users {
-            padding: 10px 0;
-            border-top: 1px solid #3e3e42;
-            margin-top: 10px;
-        }
-
-        .online-users h4 {
-            font-size: 0.8em;
-            color: #858585;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-
-        .user-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .user-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
-        }
-
-        .user-item:hover {
-            background: #2d2d30;
-        }
-
-        .user-status {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4ec9b0;
-        }
-
-        .user-name {
-            color: #cccccc;
-        }
-
-        .user-item.own .user-name {
-            color: #9cdcfe;
-            font-weight: 600;
-        }
-
-        /* Plan Badge */
-        .plan-badge {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.85em;
-            color: #969696;
             z-index: 100;
         }
 
-        .plan-badge.pro {
-            border-color: #4ec9b0;
-            color: #4ec9b0;
+        .titlebar-buttons { display: flex; gap: 7px; flex-shrink: 0; }
+        .titlebar-button {
+            width: 12px; height: 12px; border-radius: 50%;
+            cursor: pointer; border: none; transition: filter .15s;
+        }
+        .titlebar-button:hover { filter: brightness(1.25); }
+        .titlebar-button.close    { background: #ff5f57; }
+        .titlebar-button.minimize { background: #febc2e; }
+        .titlebar-button.maximize { background: #28c840; }
+
+        .hdr-div { width: 1px; height: 18px; background: var(--border-soft); flex-shrink: 0; }
+
+        .hdr-logo {
+            display: flex; align-items: center; gap: 7px;
+            cursor: pointer; color: var(--txt); text-decoration: none;
+            font-weight: 600; font-size: 13px; letter-spacing: .3px; flex-shrink: 0;
+        }
+        .hdr-logo svg { width: 16px; height: 16px; color: var(--accent); }
+        .hdr-logo:hover { color: #fff; }
+
+        .hdr-slash { color: var(--txt-dim); margin: 0 3px; font-size: 16px; font-weight: 200; }
+
+        .workspace-pill {
+            font-size: 12px; color: var(--txt-2); font-weight: 500;
+            background: rgba(255,255,255,.04);
+            padding: 3px 9px; border-radius: var(--r-sm);
+            border: 1px solid var(--border-soft);
+            max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
-        .plan-badge a {
-            color: #0e639c;
-            text-decoration: none;
-            margin-left: 8px;
-        }
-
-        .plan-badge a:hover {
-            text-decoration: underline;
-        }
-
-        /* Difuminado del fondo cuando hay modal de contraseña */
-        .blurred-background {
-            filter: blur(10px);
+        .hdr-breadcrumb {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            font-size: 12px; color: var(--txt-2);
             pointer-events: none;
-            user-select: none;
+            max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
-        .modal.password-modal {
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+        .hdr-right {
+            display: flex; align-items: center; gap: 4px;
+            margin-left: auto; flex-shrink: 0;
         }
 
-        .lockout-message {
-            background: #3e2723;
-            border: 1px solid #ff5252;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
-            text-align: center;
+        .hdr-time {
+            font-size: 12px; color: var(--txt); font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+        .hdr-date { font-size: 11px; color: var(--txt-2); }
+
+        .users-pill {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(78,201,176,.08);
+            border: 1px solid rgba(78,201,176,.25);
+            border-radius: 20px; padding: 3px 10px;
+            font-size: 11px; color: var(--green);
+        }
+        .users-dot {
+            width: 6px; height: 6px;
+            background: var(--green); border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+        .hdr-btn {
+            background: transparent; border: none;
+            color: var(--txt-2); cursor: pointer;
+            height: 28px; min-width: 28px; padding: 0 7px;
+            border-radius: var(--r-sm);
+            display: flex; align-items: center; gap: 5px;
+            font-size: 12px; font-family: var(--font);
+            transition: background .15s, color .15s;
+        }
+        .hdr-btn:hover { background: rgba(255,255,255,.08); color: var(--txt); }
+        .hdr-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+        /* kept for JS querySelector('.theme-toggle i') compat */
+        .theme-toggle {}
+
+        /* ── LAYOUT ─────────────────────────────────────── */
+        .app-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+        /* kept for JS querySelector('.main-container') compat */
+        .main-container { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+        /* ── ACTIVITY BAR ───────────────────────────────── */
+        .activity-bar {
+            width: var(--act-w);
+            background: var(--bg-2);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; align-items: center;
+            padding: 6px 0; gap: 2px; flex-shrink: 0;
+        }
+        .activity-bar-item {
+            position: relative;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--txt-3);
+            border-radius: var(--r-sm);
+            transition: color .15s, background .15s;
+        }
+        .activity-bar-item:hover { color: var(--txt); background: rgba(255,255,255,.07); }
+        .activity-bar-item.active {
+            color: #fff; background: rgba(0,122,204,.18);
+        }
+        .activity-bar-item.active::before {
+            content: '';
+            position: absolute; left: -5px; top: 50%; transform: translateY(-50%);
+            width: 3px; height: 20px;
+            background: var(--accent); border-radius: 0 3px 3px 0;
+        }
+        .activity-bar-item svg { width: 18px; height: 18px; }
+        .activity-bar-item .badge {
+            position: absolute; top: 4px; right: 4px;
+            background: var(--accent); color: #fff;
+            font-size: 9px; padding: 1px 3px; border-radius: 8px;
+            min-width: 14px; text-align: center; line-height: 12px;
+        }
+        .act-spacer { flex: 1; }
+
+        /* ── SIDEBAR ────────────────────────────────────── */
+        .sidebar {
+            width: 260px; min-width: 140px; max-width: 600px;
+            background: var(--bg-2);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            position: relative; flex-shrink: 0;
+            transition: width .2s; overflow: hidden; min-height: 0;
+        }
+        .sidebar.collapsed { width: 0; min-width: 0; border: none; }
+        .sidebar.resizing { transition: none; }
+
+        .sidebar-resize-handle {
+            position: absolute; right: 0; top: 0; bottom: 0;
+            width: 3px; cursor: col-resize; z-index: 10;
+        }
+        .sidebar-resize-handle:hover,
+        .sidebar.resizing .sidebar-resize-handle { background: var(--accent); }
+
+        .sidebar-content { flex: 1; overflow: hidden; display: none; flex-direction: column; min-height: 0; }
+        .sidebar-content.active { display: flex; }
+
+        .sidebar-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .sidebar-title {
+            font-size: 10px; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase; color: var(--txt-2);
+        }
+        .sidebar-actions { display: flex; gap: 1px; }
+
+        .icon-btn {
+            background: transparent; border: none; color: var(--txt-3); cursor: pointer;
+            width: 22px; height: 22px; border-radius: var(--r-sm);
+            display: flex; align-items: center; justify-content: center;
+            transition: background .15s, color .15s;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,.08); color: var(--txt); }
+        .icon-btn svg { width: 14px; height: 14px; }
+
+        /* File Tree */
+        .file-tree { flex: 1; overflow-y: auto; padding: 3px 0; }
+        .tree-item {
+            padding: 4px 10px 4px 6px; cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+            transition: background .1s; user-select: none;
+            color: var(--txt); font-size: 13px;
+        }
+        .tree-item:hover { background: var(--bg-hover); }
+        .tree-item.selected { background: var(--bg-select); color: #fff; }
+        .tree-item.folder { font-weight: 500; }
+        .tree-item.dragging { opacity: .4; }
+        .tree-item.drag-over { background: var(--bg-select); outline: 1px dashed var(--accent); }
+        .tree-item .icon { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .tree-item .icon svg { width: 14px; height: 14px; }
+        .tree-item .chevron { width: 12px; font-size: 10px; color: var(--txt-3); transition: transform .15s; flex-shrink: 0; }
+        .tree-item .chevron.expanded { transform: rotate(90deg); }
+        .tree-children { margin-left: 14px; }
+
+        /* ── EDITOR AREA ────────────────────────────────── */
+        .editor-area {
+            flex: 1; display: flex; flex-direction: column;
+            background: var(--bg-1); overflow: hidden; min-width: 0;
         }
 
-        .lockout-timer {
-            font-size: 1.5em;
-            color: #ff5252;
-            font-weight: bold;
-            margin-top: 8px;
+        .editor-tabs {
+            background: var(--bg-2); border-bottom: 1px solid var(--border);
+            display: flex; align-items: stretch; min-height: 35px;
+            overflow-x: auto; overflow-y: hidden; flex-shrink: 0;
+        }
+        .editor-tabs::-webkit-scrollbar { height: 2px; }
+        .editor-tabs::-webkit-scrollbar-thumb { background: var(--border-soft); }
+
+        .editor-tab {
+            padding: 0 14px; background: transparent;
+            border-right: 1px solid var(--border);
+            border-bottom: 2px solid transparent;
+            cursor: pointer; display: flex; align-items: center; gap: 7px;
+            font-size: 12px; color: var(--txt-3);
+            white-space: nowrap; flex-shrink: 0;
+            transition: background .1s, color .1s;
+        }
+        .editor-tab:hover { background: var(--bg-3); color: var(--txt); }
+        .editor-tab.active { background: var(--bg-1); color: var(--txt); border-bottom-color: var(--accent); }
+        .editor-tab .close-tab {
+            opacity: 0; font-size: 14px; color: var(--txt-3);
+            width: 16px; height: 16px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 3px; transition: background .1s;
+        }
+        .editor-tab:hover .close-tab, .editor-tab.active .close-tab { opacity: 1; }
+        .editor-tab .close-tab:hover { background: rgba(255,255,255,.12); }
+
+        .empty-state {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+        }
+        .empty-state .icon { display: flex; opacity: .12; }
+        .empty-state .icon svg { width: 72px; height: 72px; }
+        .empty-state p { font-size: 14px; color: var(--txt-3); }
+        .empty-state small { font-size: 12px; color: var(--txt-dim); }
+
+        .editor-wrapper { flex: 1; overflow: visible; display: flex; flex-direction: column; min-height: 0; }
+
+        .editor-toolbar {
+            background: var(--bg-3); border-bottom: 1px solid var(--border-soft);
+            padding: 5px 12px; display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+            justify-content: space-between;
+        }
+        .toolbar-left { display: flex; align-items: center; gap: 5px; }
+        .toolbar-right { display: flex; align-items: center; gap: 5px; }
+        .toolbar-btn {
+            background: transparent; border: 1px solid var(--border-soft); color: var(--txt);
+            padding: 4px 9px; border-radius: var(--r-sm); cursor: pointer;
+            font-size: 11px; font-family: var(--font);
+            display: flex; align-items: center; gap: 4px; transition: all .15s;
+        }
+        .toolbar-btn:hover { background: rgba(255,255,255,.07); border-color: var(--accent); }
+        .toolbar-btn:disabled { opacity: .35; cursor: not-allowed; }
+        .toolbar-btn svg { width: 12px; height: 12px; }
+        .toolbar-separator { width: 1px; height: 16px; background: var(--border-soft); margin: 0 2px; }
+        .toolbar-select {
+            background: var(--bg-1); border: 1px solid var(--border-soft); color: var(--txt);
+            padding: 3px 7px; border-radius: var(--r-sm); cursor: pointer;
+            font-size: 11px; font-family: var(--font); outline: none;
+        }
+        .toolbar-select:hover { border-color: var(--accent); }
+        .toolbar-select option { background: var(--bg-2); }
+
+        .editor-content { flex: 1; overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
+        .CodeMirror { flex: 1 !important; font-family: var(--mono) !important; font-size: 14px !important; }
+        .CodeMirror-scroll { overflow-y: scroll !important; overflow-x: auto !important; }
+        .CodeMirror-lines { padding: 4px 0 !important; }
+
+        #editor {
+            flex: 1; padding: 20px; font-size: 14px; font-family: var(--mono);
+            border: none; background: var(--bg-1); color: #d4d4d4;
+            resize: none; outline: none; line-height: 1.6; width: 100%; height: 100%;
+            overflow: auto !important;
         }
 
-        .attempts-remaining {
-            color: #ffab00;
-            font-size: 0.85em;
-            margin-top: 8px;
-            text-align: center;
+        /* ── STATUS BAR ─────────────────────────────────── */
+        .statusbar {
+            height: var(--sb-h); background: var(--accent);
+            display: flex; align-items: center; padding: 0 8px;
+            flex-shrink: 0; z-index: 100;
         }
+        .statusbar-left, .statusbar-right { display: flex; align-items: center; gap: 1px; }
+        .statusbar-right { margin-left: auto; }
+        .sb-item {
+            display: flex; align-items: center; gap: 4px;
+            padding: 0 7px; height: 100%;
+            font-size: 11px; color: rgba(255,255,255,.9);
+            border-radius: var(--r-sm);
+            transition: background .1s; white-space: nowrap;
+        }
+        .sb-item:hover { background: rgba(255,255,255,.15); cursor: pointer; }
+        .sb-item svg { width: 11px; height: 11px; }
+
+        /* ── CHAT PANEL ─────────────────────────────────── */
+        .chat-container { display: flex; flex-direction: column; height: 100%; }
+        .chat-header { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .chat-header-title { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .chat-header h3 { font-size: 12px; font-weight: 600; color: var(--txt); margin: 0; flex: 1; }
+        .chat-header-title input {
+            font-size: 12px; color: var(--txt); background: var(--bg-3);
+            border: 1px solid var(--accent); border-radius: var(--r-sm); padding: 3px 8px; flex: 1; font-family: var(--font);
+        }
+        .chat-header-title input:focus { outline: none; }
+        .edit-chat-name-btn {
+            background: none; border: none; color: var(--txt-3); cursor: pointer; padding: 3px;
+            border-radius: var(--r-sm); display: flex; align-items: center; transition: color .15s, background .15s;
+        }
+        .edit-chat-name-btn:hover { color: var(--green); background: rgba(255,255,255,.06); }
+        .edit-chat-name-btn svg { width: 12px; height: 12px; }
+
+        .username-input { display: flex; gap: 6px; }
+        .username-input input {
+            flex: 1; background: var(--bg-1); border: 1px solid var(--border-soft);
+            border-radius: var(--r-sm); padding: 5px 8px; color: var(--txt);
+            font-size: 12px; font-family: var(--font);
+        }
+        .username-input input:focus { outline: none; border-color: var(--accent); }
+        .username-input button {
+            background: var(--accent); border: none; border-radius: var(--r-sm);
+            padding: 5px 10px; color: #fff; cursor: pointer; display: flex; align-items: center;
+        }
+        .username-input button:hover { background: var(--accent-h); }
+        .username-input button svg { width: 13px; height: 13px; }
+
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 8px;
+            display: flex; flex-direction: column; gap: 3px;
+        }
+        .chat-message {
+            display: flex; flex-direction: column; gap: 2px;
+            padding: 6px 8px; background: var(--bg-3);
+            border-radius: var(--r-sm); font-size: 12px;
+            border-left: 2px solid transparent;
+        }
+        .chat-message:hover { background: var(--bg-hover); }
+        .chat-message.own { background: rgba(9,71,113,.45); border-left-color: var(--accent); }
+        .chat-message-header { display: flex; justify-content: space-between; align-items: center; }
+        .chat-username { font-weight: 600; font-size: 11px; color: var(--green); }
+        .chat-message.own .chat-username { color: #9cdcfe; }
+        .chat-time { font-size: 10px; color: var(--txt-dim); }
+        .chat-text { color: var(--txt); word-wrap: break-word; line-height: 1.5; }
+        .chat-system { text-align: center; color: var(--txt-dim); font-size: 11px; font-style: italic; padding: 3px; }
+
+        .chat-input-container {
+            display: flex; gap: 6px; padding: 8px;
+            border-top: 1px solid var(--border); position: relative; flex-shrink: 0;
+        }
+        .chat-commands-menu {
+            position: absolute; bottom: 100%; left: 8px; right: 8px;
+            background: var(--bg-3); border: 1px solid var(--border-soft);
+            border-radius: var(--r-md); margin-bottom: 4px;
+            max-height: 200px; overflow-y: auto; display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,.45); z-index: 100;
+        }
+        .chat-commands-menu.visible { display: block; }
+        .command-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .1s; }
+        .command-item:last-child { border-bottom: none; }
+        .command-item:hover, .command-item.selected { background: var(--bg-hover); }
+        .command-name { color: var(--green); font-weight: 600; font-size: 11px; font-family: var(--mono); }
+        .command-description { color: var(--txt-3); font-size: 11px; margin-top: 1px; }
+
+        .chat-input-container input {
+            flex: 1; background: var(--bg-1); border: 1px solid var(--border-soft);
+            border-radius: var(--r-sm); padding: 6px 10px; color: var(--txt);
+            font-size: 12px; font-family: var(--font);
+        }
+        .chat-input-container input:focus { outline: none; border-color: var(--accent); }
+        .chat-input-container button {
+            background: var(--accent); border: none; border-radius: var(--r-sm);
+            padding: 6px 12px; color: #fff; cursor: pointer; display: flex; align-items: center;
+        }
+        .chat-input-container button:hover { background: var(--accent-h); }
+        .chat-input-container button svg { width: 13px; height: 13px; }
+        .chat-typing {
+            min-height: 16px; padding: 2px 10px 0;
+            font-size: 11px; font-style: italic; color: var(--txt-dim);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* ── USERS PANEL ────────────────────────────────── */
+        .online-users { padding: 12px; }
+        .online-users h4 { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--txt-3); margin-bottom: 10px; }
+        .user-list { display: flex; flex-direction: column; gap: 2px; }
+        .user-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-sm); font-size: 12px; transition: background .1s; }
+        .user-item:hover { background: var(--bg-hover); }
+        .user-status { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+        .user-name { color: var(--txt); }
+        .user-item.own .user-name { color: #9cdcfe; font-weight: 600; }
+
+        /* ── TICKETS ─────────────────────────────────────── */
+        .tickets-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 7px; }
+        .ticket-card { background: var(--bg-3); border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 10px; cursor: pointer; transition: all .15s; }
+        .ticket-card:hover { background: var(--bg-hover); border-color: var(--accent); }
+        .ticket-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .ticket-title { font-weight: 600; color: var(--txt); font-size: 12px; flex: 1; margin-right: 8px; }
+        .ticket-status { padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; flex-shrink: 0; }
+        .ticket-status.open       { background: rgba(30,136,229,.15); color: #64b5f6; border: 1px solid rgba(30,136,229,.3); }
+        .ticket-status.inprogress { background: rgba(251,140,0,.15);  color: #ffb74d; border: 1px solid rgba(251,140,0,.3); }
+        .ticket-status.resolved   { background: rgba(67,160,71,.15);  color: #81c784; border: 1px solid rgba(67,160,71,.3); }
+        .ticket-status.closed     { background: rgba(97,97,97,.15);   color: #9e9e9e; border: 1px solid rgba(97,97,97,.3); }
+        .ticket-meta { display: flex; gap: 10px; font-size: 10px; color: var(--txt-3); margin-bottom: 4px; }
+        .ticket-meta-item { display: flex; align-items: center; gap: 3px; }
+        .ticket-category { padding: 1px 5px; background: var(--bg-select); border-radius: 3px; font-size: 10px; color: var(--green); }
+        .ticket-description { color: var(--txt-2); font-size: 11px; line-height: 1.4; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .ticket-priority { padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+        .ticket-priority.low    { background: rgba(78,201,176,.1);  color: var(--green); }
+        .ticket-priority.medium { background: rgba(255,165,0,.1);   color: var(--yellow); }
+        .ticket-priority.high   { background: rgba(244,71,71,.1);   color: var(--red); }
+        .ticket-responses-count { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--txt-3); margin-top: 6px; }
+
+        /* ── MODALS ─────────────────────────────────────── */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.55); z-index: 1000;
+            align-items: center; justify-content: center; backdrop-filter: blur(3px);
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: var(--bg-3); border-radius: var(--r-lg); padding: 24px; min-width: 380px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.6); border: 1px solid var(--border-soft);
+        }
+        .modal-header {
+            font-size: 14px; margin-bottom: 18px; color: var(--txt); font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .modal-header svg { width: 18px; height: 18px; color: var(--accent); }
+        .modal-close { background: none; border: none; color: var(--txt-3); cursor: pointer; font-size: 18px; padding: 0 4px; margin-left: auto; }
+        .modal-close:hover { color: var(--txt); }
+        .modal-input {
+            width: 100%; padding: 8px 12px; background: var(--bg-1); border: 1px solid var(--border-soft);
+            border-radius: var(--r-sm); color: var(--txt); font-size: 13px; font-family: var(--font);
+            margin-bottom: 12px; transition: border-color .15s;
+        }
+        .modal-input:focus { outline: none; border-color: var(--accent); }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .modal-textarea {
+            width: 100%; min-height: 90px; background: var(--bg-1); border: 1px solid var(--border-soft);
+            border-radius: var(--r-sm); padding: 8px 12px; color: var(--txt);
+            font-size: 12px; font-family: var(--font); resize: vertical; margin-bottom: 10px;
+        }
+        .modal-textarea:focus { outline: none; border-color: var(--accent); }
+        .modal-select {
+            width: 100%; background: var(--bg-1); border: 1px solid var(--border-soft);
+            border-radius: var(--r-sm); padding: 7px 10px; color: var(--txt);
+            font-size: 12px; font-family: var(--font); margin-bottom: 10px;
+        }
+        .modal-select:focus { outline: none; border-color: var(--accent); }
+        .btn {
+            background: var(--accent); color: #fff; border: none; padding: 7px 16px;
+            border-radius: var(--r-sm); cursor: pointer; font-size: 12px; font-family: var(--font);
+            font-weight: 500; transition: background .15s; display: flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: var(--accent-h); }
+        .btn svg { width: 13px; height: 13px; }
+        .btn-secondary { background: rgba(255,255,255,.08); color: var(--txt); }
+        .btn-secondary:hover { background: rgba(255,255,255,.14); }
+        .btn-primary { background: var(--accent); }
+        .btn-primary:hover { background: var(--accent-h); }
+        .btn-danger { background: #c0392b; }
+        .btn-danger:hover { background: #e74c3c; }
+
+        /* ── TOAST ──────────────────────────────────────── */
+        .toast {
+            position: fixed; bottom: 36px;
+            left: 50%; transform: translateX(-50%) translateY(14px);
+            background: var(--bg-3); color: var(--txt); padding: 9px 18px; border-radius: var(--r-md);
+            box-shadow: 0 4px 20px rgba(0,0,0,.5); opacity: 0; transition: all .25s;
+            pointer-events: none; border: 1px solid var(--border-soft);
+            font-size: 13px; z-index: 9000; white-space: nowrap;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success { border-color: var(--green); }
+
+        /* ── CHAT NOTIFICATION ──────────────────────────── */
+        .chat-notification {
+            position: fixed; bottom: 30px; right: 20px; background: var(--bg-3);
+            border: 1px solid var(--border-soft); border-radius: var(--r-lg);
+            padding: 12px 14px; max-width: 290px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.5); opacity: 0; transform: translateX(310px);
+            transition: all .3s; pointer-events: none; z-index: 9000;
+        }
+        .chat-notification.show { opacity: 1; transform: translateX(0); pointer-events: all; }
+        .chat-notification-header { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; color: var(--green); font-weight: 600; font-size: 11px; }
+        .chat-notification-header svg { width: 12px; height: 12px; }
+        .chat-notification-user { color: var(--green); font-weight: 600; margin-bottom: 3px; font-size: 11px; }
+        .chat-notification-message { color: var(--txt); font-size: 12px; line-height: 1.4; word-wrap: break-word; }
+        .chat-notification-close { position: absolute; top: 7px; right: 8px; background: none; border: none; color: var(--txt-3); cursor: pointer; font-size: 16px; line-height: 1; }
+        .chat-notification-close:hover { color: var(--txt); }
+
+        /* ── CONTEXT MENU ───────────────────────────────── */
+        .context-menu {
+            position: fixed; background: var(--bg-3); border: 1px solid var(--border-soft);
+            border-radius: var(--r-md); box-shadow: 0 8px 28px rgba(0,0,0,.6);
+            padding: 4px; z-index: 2000; display: none; min-width: 160px;
+        }
+        .context-menu.show { display: block; }
+        .context-menu-item {
+            padding: 7px 12px; cursor: pointer; color: var(--txt); font-size: 12px;
+            display: flex; align-items: center; gap: 8px; border-radius: var(--r-sm); transition: background .1s;
+        }
+        .context-menu-item svg { width: 13px; height: 13px; }
+        .context-menu-item:hover { background: var(--bg-hover); }
+        .context-menu-item.danger { color: #f48771; }
+        .context-menu-item.danger:hover { background: rgba(244,71,71,.1); }
+        .context-menu-separator { height: 1px; background: var(--border-soft); margin: 4px 0; }
+
+        /* ── PLAN BADGE ─────────────────────────────────── */
+        .plan-badge {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 11px; color: rgba(255,255,255,.8);
+            padding: 0 8px;
+        }
+        .plan-badge.pro { color: var(--green); font-weight: 600; }
+        .plan-badge a { color: rgba(255,255,255,.9); text-decoration: none; }
+        .plan-badge a:hover { text-decoration: underline; }
+
+        /* ── UPLOAD ─────────────────────────────────────── */
+        .upload-area {
+            border: 2px dashed var(--border-soft); border-radius: var(--r-lg); padding: 48px 32px;
+            text-align: center; cursor: pointer; transition: all .2s; background: var(--bg-2); margin-bottom: 16px;
+        }
+        .upload-area:hover { border-color: var(--accent); background: var(--bg-1); }
+        .upload-area.dragover { border-color: var(--green); border-style: solid; background: rgba(78,201,176,.04); }
+        .upload-area .icon { color: var(--accent); margin-bottom: 12px; display: flex; justify-content: center; }
+        .upload-area .icon svg { width: 48px; height: 48px; }
+        .upload-area h3 { color: var(--txt); margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+        .upload-area p { color: var(--txt-2); font-size: 12px; }
+        .upload-options { display: flex; gap: 8px; margin-bottom: 16px; }
+        .upload-option-btn {
+            flex: 1; padding: 10px 16px; background: var(--bg-1); border: 1px solid var(--border-soft);
+            color: var(--txt); border-radius: var(--r-md); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            font-size: 12px; font-family: var(--font); transition: all .15s;
+        }
+        .upload-option-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+        .upload-option-btn svg { width: 16px; height: 16px; }
+        .file-list-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg-2); border-radius: var(--r-sm); margin-bottom: 6px; color: var(--txt); font-size: 12px; }
+        .file-list-item svg { width: 14px; height: 14px; color: var(--green); }
+        .file-list-item .file-path { flex: 1; }
+        .file-list-item .file-size { color: var(--txt-3); font-size: 11px; }
+
+        /* ── TICKET MESSAGES ────────────────────────────── */
+        .ticket-message { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: var(--bg-2); border-radius: var(--r-sm); border-left: 2px solid var(--border-soft); }
+        .ticket-message.admin { background: rgba(0,120,215,.07); border-left-color: var(--accent); }
+        .ticket-message-header { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--txt-3); }
+        .ticket-message-user { font-weight: 600; color: var(--txt); }
+        .ticket-message.admin .ticket-message-user { color: #4fc3f7; }
+        .ticket-message-time { margin-left: auto; }
+        .ticket-message-text { color: var(--txt); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+
+        /* ── PASSWORD MODAL ─────────────────────────────── */
+        .blurred-background { filter: blur(8px); pointer-events: none; user-select: none; }
+        .modal.password-modal { backdrop-filter: blur(5px); }
+        .lockout-message { background: rgba(180,0,0,.12); border: 1px solid rgba(244,71,71,.35); border-radius: var(--r-md); padding: 14px; margin-bottom: 14px; text-align: center; }
+        .lockout-timer { font-size: 1.4em; color: var(--red); font-weight: bold; margin-top: 6px; font-family: var(--mono); }
+        .attempts-remaining { color: var(--yellow); font-size: 12px; margin-top: 6px; text-align: center; }
+
+        /* ── SCROLLBARS ─────────────────────────────────── */
+        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* ── LIGHT THEME ────────────────────────────────── */
+        body.light-theme {
+            --bg-0: #f0f0f0; --bg-1: #ffffff; --bg-2: #f3f3f3; --bg-3: #ffffff;
+            --bg-4: #e0e0e0; --bg-hover: #e8e8e8; --bg-select: #cce5ff;
+            --border: #e0e0e0; --border-soft: #d0d0d0;
+            --txt: #1e1e1e; --txt-2: #5a5a5a; --txt-3: #767676; --txt-dim: #aaa;
+        }
+        body.light-theme .statusbar { background: #0078d4; }
+        body.light-theme .CodeMirror { background: #fff !important; color: #1e1e1e !important; }
+        body.light-theme .CodeMirror-gutters { background: #f8f8f8 !important; border-right: 1px solid #e0e0e0 !important; }
     </style>
 </head>
 <body>
-    <!-- Barra de título macOS -->
-    <div class="titlebar">
+
+    <!-- ── HEADER ──────────────────────────────────────── -->
+    <div class="header">
         <div class="titlebar-buttons">
-            <div class="titlebar-button close" onclick="goToHome()"></div>
+            <div class="titlebar-button close"    onclick="goToHome()"></div>
             <div class="titlebar-button minimize" onclick="toggleFullscreen()"></div>
             <div class="titlebar-button maximize" onclick="minimizeWindow()"></div>
         </div>
-        <div class="titlebar-clock" id="titlebarClock">00:00:00</div>
-        <div class="titlebar-right">
-            <div class="titlebar-date" id="titlebarDate"></div>
-            <button class="theme-toggle" onclick="toggleTheme()">
-                <i data-feather="sun" style="width: 14px; height: 14px;"></i>
+
+        <div class="hdr-div"></div>
+
+        <div class="hdr-logo" onclick="window.location.href='/'">
+            <i data-feather="code"></i>
+            <span>CodeSpace</span>
+        </div>
+        <span class="hdr-slash">/</span>
+        <div class="workspace-pill" id="workspaceName">workspace</div>
+
+        <!-- Breadcrumb centrado sobre el header -->
+        <div class="hdr-breadcrumb" id="currentFileName">Sin archivo abierto</div>
+
+        <div class="hdr-right">
+            <span class="hdr-time" id="titlebarClock">00:00:00</span>
+            <span class="hdr-date" id="titlebarDate"></span>
+            <div class="hdr-div"></div>
+            <div class="users-pill">
+                <span class="users-dot"></span>
+                <span id="usersCount">0</span>
+                <span id="usersText">&nbsp;usuarios</span>
+            </div>
+            <div class="hdr-div"></div>
+            <button class="hdr-btn theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+                <i data-feather="sun" style="width:14px;height:14px;"></i>
                 <span id="themeText">Claro</span>
+            </button>
+            <div class="hdr-div"></div>
+            <button class="hdr-btn" onclick="shareLink()" title="Compartir enlace">
+                <i data-feather="link-2"></i>
+            </button>
+            <button class="hdr-btn" onclick="exportWorkspace()" title="Descargar ZIP">
+                <i data-feather="download"></i>
+            </button>
+            <button class="hdr-btn" onclick="toggleWorkspacePassword()" id="workspacePasswordBtn" title="Proteger workspace">
+                <i data-feather="lock" style="width:14px;height:14px;"></i>
+                <span>Contraseña</span>
+            </button>
+            <button class="hdr-btn" onclick="showTerminal()" id="terminalBtn" title="Terminal" style="display:none;">
+                <i data-feather="terminal"></i>
+            </button>
+            <div class="hdr-div"></div>
+            <button class="hdr-btn" onclick="handleUserButtonClick()" id="userButton" title="Iniciar sesión">
+                <i data-feather="log-in" id="userButtonIcon"></i>
             </button>
         </div>
     </div>
 
-    <!-- Header -->
-    <div class="header">
-        <div class="header-left">
-            <div class="logo" onclick="window.location.href='/'">
-                <i data-feather="code"></i>
-                <span>CodeSpace</span>
-            </div>
-            <div class="file-name" id="workspaceName">workspace</div>
-            <div class="file-name" style="color: #3e3e42">|</div>
-            <div class="file-name" id="currentFileName">Sin archivo abierto</div>
-        </div>
-        <div class="header-right">
-            <div class="users-count">
-                <div class="users-indicator"></div>
-                <span id="usersCount">0</span> <span id="usersText">usuarios</span>
-            </div>
-            <div class="header-actions">
-                <button class="btn" onclick="exportWorkspace()" title="Descargar como ZIP">
-                    <i data-feather="download" style="width: 14px; height: 14px;"></i>
-                    Descargar
-                </button>
-                <button class="btn" onclick="toggleWorkspacePassword()" id="workspacePasswordBtn" title="Proteger workspace">
-                    <i data-feather="lock" style="width: 14px; height: 14px;"></i>
-                    Contraseña
-                </button>
-                <button class="btn" onclick="showTerminal()" id="terminalBtn" title="Abrir Terminal" style="display: none;">
-                    <i data-feather="terminal" style="width: 14px; height: 14px;"></i>
-                    Terminal
-                </button>
-                <button class="btn" onclick="shareLink()">
-                    <i data-feather="link" style="width: 14px; height: 14px;"></i>
-                    Compartir
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- ── APP BODY ─────────────────────────────────────── -->
+    <div class="app-body">
+        <div class="main-container">
 
-    <!-- Contenedor principal -->
-    <div class="main-container">
-        <div class="sidebar-container">
             <!-- Activity Bar -->
-            <div class="activity-bar">
+            <nav class="activity-bar">
                 <div class="activity-bar-item active" onclick="switchSidebar('files')" title="Explorador">
-                    <i data-feather="folder" style="width: 20px; height: 20px;"></i>
+                    <i data-feather="folder" style="width:18px;height:18px;"></i>
                 </div>
                 <div class="activity-bar-item" onclick="switchSidebar('chat')" title="Chat">
-                    <i data-feather="message-square" style="width: 20px; height: 20px;"></i>
-                    <span class="badge" id="chatBadge" style="display: none;">0</span>
+                    <i data-feather="message-square" style="width:18px;height:18px;"></i>
+                    <span class="badge" id="chatBadge" style="display:none;">0</span>
                 </div>
                 <div class="activity-bar-item" onclick="switchSidebar('users')" title="Usuarios">
-                    <i data-feather="users" style="width: 20px; height: 20px;"></i>
+                    <i data-feather="users" style="width:18px;height:18px;"></i>
                     <span class="badge" id="usersBadge">1</span>
                 </div>
-                <div class="activity-bar-item" onclick="switchSidebar('tickets')" title="Soporte/Tickets">
-                    <i data-feather="life-buoy" style="width: 20px; height: 20px;"></i>
-                    <span class="badge" id="ticketsBadge" style="display: none;">0</span>
+                <div class="activity-bar-item" onclick="switchSidebar('tickets')" title="Soporte">
+                    <i data-feather="life-buoy" style="width:18px;height:18px;"></i>
+                    <span class="badge" id="ticketsBadge" style="display:none;">0</span>
                 </div>
-                <div class="activity-bar-item" style="margin-top: auto; margin-bottom: 10px;" onclick="handleUserButtonClick()" title="Acceder" id="userButton">
-                    <i data-feather="log-in" style="width: 20px; height: 20px;" id="userButtonIcon"></i>
-                </div>
-            </div>
+            </nav>
 
             <!-- Sidebar -->
-            <div class="sidebar">
+            <aside class="sidebar">
                 <div class="sidebar-resize-handle" id="resizeHandle"></div>
-                
+
                 <!-- Files Panel -->
                 <div class="sidebar-content active" id="filesPanel">
                     <div class="sidebar-header">
-                        <div>
-                            <div class="sidebar-title">Explorador</div>
-                            <div class="workspace-info">Los cambios se guardan automáticamente</div>
-                        </div>
+                        <span class="sidebar-title">Explorador</span>
                         <div class="sidebar-actions">
-                            <button class="icon-btn" onclick="showNewFileModal()" title="Nuevo archivo">
-                                <i data-feather="file-plus"></i>
-                            </button>
-                            <button class="icon-btn" onclick="showNewFolderModal()" title="Nueva carpeta">
-                                <i data-feather="folder-plus"></i>
-                            </button>
-                            <button class="icon-btn" onclick="showUploadModal()" title="Subir archivos">
-                                <i data-feather="upload"></i>
-                            </button>
+                            <button class="icon-btn" onclick="showNewFileModal()" title="Nuevo archivo"><i data-feather="file-plus"></i></button>
+                            <button class="icon-btn" onclick="showNewFolderModal()" title="Nueva carpeta"><i data-feather="folder-plus"></i></button>
+                            <button class="icon-btn" onclick="showUploadModal()" title="Subir archivos"><i data-feather="upload"></i></button>
                         </div>
                     </div>
                     <div class="file-tree" id="fileTree"></div>
@@ -1875,78 +738,129 @@
                         <div class="chat-header">
                             <div class="chat-header-title">
                                 <h3 id="chatTitle">Chat del Workspace</h3>
-                                <button class="edit-chat-name-btn" onclick="editChatName()" title="Editar nombre del chat">
-                                    <i data-feather="edit-2" style="width: 14px; height: 14px;"></i>
+                                <button class="edit-chat-name-btn" onclick="editChatName()" title="Editar nombre">
+                                    <i data-feather="edit-2" style="width:13px;height:13px;"></i>
                                 </button>
                             </div>
                             <div class="username-input">
-                                <input type="text" id="usernameInput" placeholder="Tu nombre (puedes cambiarlo cuando quieras)..." maxlength="20">
-                                <button onclick="setUsername()" title="Guardar nombre">
-                                    <i data-feather="check" style="width: 14px; height: 14px;"></i>
+                                <input type="text" id="usernameInput" placeholder="Tu nombre…" maxlength="20">
+                                <button onclick="setUsername()" title="Guardar">
+                                    <i data-feather="check" style="width:13px;height:13px;"></i>
                                 </button>
                             </div>
                         </div>
                         <div class="chat-messages" id="chatMessages"></div>
+                        <div class="chat-typing" id="chatTyping"></div>
                         <div class="chat-input-container">
                             <div class="chat-commands-menu" id="chatCommandsMenu"></div>
-                            <input type="text" id="chatInput" placeholder="Escribe un mensaje o usa / para comandos..." maxlength="500">
-                            <button onclick="sendMessage()">
-                                <i data-feather="send" style="width: 14px; height: 14px;"></i>
-                            </button>
+                            <input type="text" id="chatInput" placeholder="Escribe un mensaje o usa / para comandos…" maxlength="500">
+                            <button onclick="sendMessage()"><i data-feather="send" style="width:13px;height:13px;"></i></button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Users Panel -->
                 <div class="sidebar-content" id="usersPanel">
-                    <div class="chat-container">
-                        <div class="online-users">
-                            <h4>Usuarios Conectados</h4>
-                            <div class="user-list" id="userList"></div>
-                        </div>
+                    <div class="sidebar-header">
+                        <span class="sidebar-title">Conectados</span>
+                    </div>
+                    <div class="online-users">
+                        <div class="user-list" id="userList"></div>
                     </div>
                 </div>
 
                 <!-- Tickets Panel -->
                 <div class="sidebar-content" id="ticketsPanel">
                     <div class="chat-container">
-                        <div class="chat-header">
-                            <h3>Soporte / Tickets</h3>
-                            <button class="btn" onclick="showNewTicketModal()" style="font-size: 0.85em; padding: 5px 10px;">
-                                <i data-feather="plus" style="width: 14px; height: 14px;"></i>
-                                Nuevo Ticket
+                        <div class="chat-header" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;">
+                            <h3 style="font-size:12px;font-weight:600;color:var(--txt);">Soporte / Tickets</h3>
+                            <button class="btn" onclick="showNewTicketModal()" style="font-size:11px;padding:4px 10px;">
+                                <i data-feather="plus" style="width:12px;height:12px;"></i> Nuevo
                             </button>
                         </div>
                         <div class="tickets-list" id="ticketsList">
-                            <div style="text-align: center; color: #858585; padding: 20px;">
-                                Cargando tickets...
-                            </div>
+                            <div style="text-align:center;color:var(--txt-3);padding:20px;font-size:12px;">Cargando tickets…</div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </aside>
 
-        <!-- Editor -->
-        <div class="editor-container">
-            <div class="editor-tabs" id="editorTabs">
-                <!-- Se llenará dinámicamente -->
-            </div>
-            <div class="empty-state" id="emptyState">
-                <div class="icon">
-                    <i data-feather="file-text"></i>
-                </div>
-                <p>Selecciona o crea un archivo para empezar</p>
-            </div>
-            <div class="editor-wrapper" id="editorWrapper" style="display: none;">
-                <div class="editor-content">
-                    <textarea id="editor" style="display: none;"></textarea>
-                </div>
-            </div>
-        </div>
-    </div>
+            <!-- Editor -->
+            <main class="editor-area">
+                <div class="editor-tabs" id="editorTabs"></div>
 
-    <!-- Modal para nuevo archivo/carpeta -->
+                <div class="empty-state" id="emptyState">
+                    <div class="icon"><i data-feather="file-text"></i></div>
+                    <p>Selecciona o crea un archivo para empezar</p>
+                    <small>Usa el explorador o arrastra archivos aquí</small>
+                </div>
+
+                <div class="editor-wrapper" id="editorWrapper" style="display:none;">
+                    <div class="editor-toolbar">
+                        <div class="toolbar-left">
+                            <button class="toolbar-btn" onclick="saveFile()" title="Guardar (Ctrl+S)"><i data-feather="save"></i> Guardar</button>
+                            <div class="toolbar-separator"></div>
+                            <button class="toolbar-btn" onclick="undoEditor()" title="Deshacer"><i data-feather="corner-up-left"></i></button>
+                            <button class="toolbar-btn" onclick="redoEditor()" title="Rehacer"><i data-feather="corner-up-right"></i></button>
+                            <div class="toolbar-separator"></div>
+                            <button class="toolbar-btn" onclick="findInEditor()" title="Buscar (Ctrl+F)"><i data-feather="search"></i></button>
+                            <button class="toolbar-btn" onclick="replaceInEditor()" title="Reemplazar (Ctrl+H)"><i data-feather="refresh-cw"></i></button>
+                            <div class="toolbar-separator"></div>
+                            <button class="toolbar-btn" onclick="formatDocument()" title="Formatear"><i data-feather="align-left"></i> Formatear</button>
+                            <div class="toolbar-separator"></div>
+                            <button class="toolbar-btn" onclick="insertBold()" title="Negrita (Ctrl+B)"><i data-feather="bold"></i></button>
+                            <button class="toolbar-btn" onclick="insertItalic()" title="Cursiva (Ctrl+I)"><i data-feather="italic"></i></button>
+                            <button class="toolbar-btn" onclick="insertUnderline()" title="Subrayado (Ctrl+U)"><i data-feather="underline"></i></button>
+                            <div class="toolbar-separator"></div>
+                            <select class="toolbar-select" id="fontSizeSelect" onchange="changeFontSize()" title="Tamaño">
+                                <option value="12">12px</option>
+                                <option value="13">13px</option>
+                                <option value="14" selected>14px</option>
+                                <option value="15">15px</option>
+                                <option value="16">16px</option>
+                                <option value="18">18px</option>
+                                <option value="20">20px</option>
+                            </select>
+                            <select class="toolbar-select" id="fontFamilySelect" onchange="changeFontFamily()" title="Fuente">
+                                <option value="'Consolas', monospace">Consolas</option>
+                                <option value="'Fira Code', monospace">Fira Code</option>
+                                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                                <option value="'Courier New', monospace">Courier New</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="toolbar-btn" onclick="showHtmlPreview()" id="previewBtn" style="display:none;" title="Vista previa (Ctrl+Shift+P)"><i data-feather="eye"></i> Preview</button>
+                        </div>
+                    </div>
+                    <div class="editor-content" id="editorContent">
+                        <textarea id="editor" style="display:none;"></textarea>
+                    </div>
+                </div>
+            </main>
+
+        </div><!-- /.main-container -->
+    </div><!-- /.app-body -->
+
+    <!-- ── STATUS BAR ──────────────────────────────────── -->
+    <footer class="statusbar">
+        <div class="statusbar-left">
+            <span class="sb-item">
+                <i data-feather="git-branch"></i>
+                <span id="statusWorkspaceName">workspace</span>
+            </span>
+        </div>
+        <div class="statusbar-right">
+            <span class="plan-badge" id="planBadge">
+                <span id="planName">Plan FREE</span>
+            </span>
+        </div>
+    </footer>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODALS
+    ═══════════════════════════════════════════════════ -->
+
+    <!-- New file/folder -->
     <div class="modal" id="modal">
         <div class="modal-content">
             <div class="modal-header" id="modalTitle">Nuevo archivo</div>
@@ -1958,47 +872,145 @@
         </div>
     </div>
 
-    <!-- Modal para contraseña de acceso -->
+    <!-- Access password -->
     <div class="modal password-modal" id="accessPasswordModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <i data-feather="lock" style="width: 20px; height: 20px;"></i>
-                <span>Workspace Protegido</span>
-            </div>
-            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
-                Este workspace está protegido con contraseña
-            </p>
-            <!-- Mensaje de bloqueo -->
-            <div class="lockout-message" id="lockoutMessage" style="display: none;">
-                <div style="color: #ff5252; font-weight: 500;">
-                    <i data-feather="alert-triangle" style="width: 20px; height: 20px;"></i>
-                    Demasiados intentos fallidos
-                </div>
+            <div class="modal-header"><i data-feather="lock"></i><span>Workspace Protegido</span></div>
+            <p style="color:var(--txt-2);margin-bottom:16px;font-size:12px;">Este workspace está protegido con contraseña</p>
+            <div class="lockout-message" id="lockoutMessage" style="display:none;">
+                <div style="color:var(--red);font-weight:600;font-size:13px;"><i data-feather="alert-triangle" style="width:16px;height:16px;"></i> Demasiados intentos fallidos</div>
                 <div class="lockout-timer" id="lockoutTimer">00:30</div>
-                <div style="color: #969696; font-size: 0.85em; margin-top: 8px;">Espera antes de intentar nuevamente</div>
+                <div style="color:var(--txt-3);font-size:11px;margin-top:6px;">Espera antes de intentar nuevamente</div>
             </div>
-            <input type="password" class="modal-input" id="passwordInput" placeholder="Contraseña">
+            <input type="password" class="modal-input" id="passwordInput" placeholder="Contraseña del workspace">
             <div class="attempts-remaining" id="attemptsRemaining">Intentos restantes: 3</div>
+            <div class="modal-actions"><button class="btn" onclick="submitPassword()" id="submitPasswordBtn">Acceder</button></div>
+        </div>
+    </div>
+
+    <!-- Set workspace password -->
+    <div class="modal" id="setWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header"><i data-feather="lock"></i><span>Proteger Workspace</span></div>
+            <p style="color:var(--txt-2);margin-bottom:16px;font-size:12px;">Establece una contraseña para este workspace.</p>
+            <input type="password" class="modal-input" id="newWorkspacePassword" placeholder="Nueva contraseña">
+            <input type="password" class="modal-input" id="confirmWorkspacePassword" placeholder="Confirmar contraseña">
             <div class="modal-actions">
-                <button class="btn" onclick="submitPassword()" id="submitPasswordBtn">Acceder</button>
+                <button class="btn btn-secondary" onclick="closeSetWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmSetWorkspacePassword()">Establecer</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
+    <!-- Change workspace password -->
+    <div class="modal" id="changeWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header"><i data-feather="key"></i><span>Cambiar Contraseña</span></div>
+            <input type="password" class="modal-input" id="currentPasswordChange" placeholder="Contraseña actual">
+            <input type="password" class="modal-input" id="newPasswordChange" placeholder="Nueva contraseña">
+            <input type="password" class="modal-input" id="confirmPasswordChange" placeholder="Confirmar nueva contraseña">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeChangeWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmChangeWorkspacePassword()">Cambiar</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Modal para nuevo ticket -->
+    <!-- Remove workspace password -->
+    <div class="modal" id="removeWorkspacePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header"><i data-feather="unlock"></i><span>Quitar Protección</span></div>
+            <p style="color:var(--txt-2);margin-bottom:16px;font-size:12px;">Introduce la contraseña actual para desproteger el workspace.</p>
+            <input type="password" class="modal-input" id="currentWorkspacePassword" placeholder="Contraseña actual">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRemoveWorkspacePasswordModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmRemoveWorkspacePassword()">Quitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set file password -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-content">
+            <div class="modal-header"><i data-feather="lock"></i><span>Proteger Archivo</span></div>
+            <input type="password" class="modal-input" id="filePassword" placeholder="Nueva contraseña">
+            <input type="password" class="modal-input" id="filePasswordConfirm" placeholder="Confirmar contraseña">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closePasswordModal()">Cancelar</button>
+                <button class="btn" onclick="confirmSetPassword()">Establecer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove file password -->
+    <div class="modal" id="removePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header"><i data-feather="unlock"></i><span>Quitar Contraseña del Archivo</span></div>
+            <input type="password" class="modal-input" id="currentPassword" placeholder="Contraseña actual">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRemovePasswordModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmRemovePassword()">Quitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unlock file -->
+    <div class="modal" id="unlockFileModal">
+        <div class="modal-content">
+            <div class="modal-header"><i data-feather="lock"></i><span>Archivo Protegido</span></div>
+            <input type="password" class="modal-input" id="unlockPassword" placeholder="Contraseña del archivo">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUnlockModal()">Cancelar</button>
+                <button class="btn" onclick="confirmUnlock()">Abrir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content" style="min-width:500px;max-width:600px;">
+            <div class="modal-header" style="justify-content:space-between;">
+                <span style="display:flex;align-items:center;gap:8px;"><i data-feather="upload-cloud"></i> Subir Archivos</span>
+                <button class="modal-close" onclick="closeUploadModal()">×</button>
+            </div>
+            <div id="uploadAreaContainer">
+                <div class="upload-area" id="uploadArea" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="showUploadOptions()">
+                    <div class="icon"><i data-feather="upload-cloud"></i></div>
+                    <h3>Arrastra archivos o carpetas aquí</h3>
+                    <p>o haz clic para seleccionar</p>
+                </div>
+                <div class="upload-options" style="display:none;" id="uploadOptions">
+                    <button class="upload-option-btn" onclick="selectFiles()"><i data-feather="file"></i> Seleccionar Archivos</button>
+                    <button class="upload-option-btn" onclick="selectFolder()"><i data-feather="folder"></i> Seleccionar Carpeta</button>
+                </div>
+            </div>
+            <div id="uploadFileList" style="display:none;">
+                <h4 style="color:var(--txt);margin-bottom:12px;font-size:12px;">Archivos a subir:</h4>
+                <div id="fileListContainer" style="max-height:280px;overflow-y:auto;background:var(--bg-1);border:1px solid var(--border-soft);border-radius:var(--r-sm);padding:8px;margin-bottom:16px;"></div>
+                <p style="color:var(--txt-2);font-size:11px;margin-bottom:16px;">Total: <span id="fileCount">0</span> archivo(s)</p>
+            </div>
+            <input type="file" id="fileUploadInput" style="display:none;" multiple>
+            <input type="file" id="folderUploadInput" style="display:none;" webkitdirectory directory>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
+                <button class="btn" id="uploadConfirmBtn" style="display:none;" onclick="confirmUpload()">
+                    <i data-feather="upload" style="width:13px;height:13px;"></i> Subir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New ticket -->
     <div class="modal" id="ticketModal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">Crear Nuevo Ticket de Soporte</div>
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header"><i data-feather="life-buoy"></i><span>Crear Ticket de Soporte</span></div>
             <input type="text" class="modal-input" id="ticketTitle" placeholder="Título del ticket" maxlength="100">
-            <textarea class="modal-textarea" id="ticketDescription" placeholder="Describe tu problema o sugerencia..."></textarea>
+            <textarea class="modal-textarea" id="ticketDescription" placeholder="Describe tu problema o sugerencia…"></textarea>
             <select class="modal-select" id="ticketCategory">
-                <option value="bug">Bug / Error</option>
-                <option value="feature">Sugerencia / Nueva función</option>
-                <option value="help">Ayuda / Soporte</option>
-                <option value="other">Otro</option>
+                <option value="bug">🐛 Bug / Error</option>
+                <option value="feature">✨ Sugerencia / Nueva función</option>
+                <option value="help">❓ Ayuda / Soporte</option>
+                <option value="other">📝 Otro</option>
             </select>
             <select class="modal-select" id="ticketPriority">
                 <option value="low">Prioridad Baja</option>
@@ -2012,257 +1024,119 @@
         </div>
     </div>
 
-    <!-- Modal para chat de ticket -->
+    <!-- Ticket chat -->
     <div class="modal" id="ticketChatModal">
-        <div class="modal-content" style="max-width: 700px; max-height: 80vh; display: flex; flex-direction: column;">
-            <div class="modal-header" style="display: flex; align-items: center; gap: 10px;">
-                <i data-feather="message-square" style="width: 20px; height: 20px;"></i>
-                <span id="ticketChatTitle">Ticket</span>
-                <button class="btn btn-secondary" onclick="closeTicketChat()" style="margin-left: auto; padding: 4px 10px; font-size: 0.9em;">Cerrar</button>
+        <div class="modal-content" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
+            <div class="modal-header" style="justify-content:space-between;flex-shrink:0;">
+                <span style="display:flex;align-items:center;gap:8px;">
+                    <i data-feather="message-square"></i>
+                    <span id="ticketChatTitle">Ticket</span>
+                </span>
+                <button class="btn btn-secondary" onclick="closeTicketChat()" style="padding:4px 10px;font-size:11px;">Cerrar</button>
             </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; padding: 10px; background: #252525; border-radius: 4px;">
-                <div style="display: flex; gap: 15px; font-size: 0.85em; color: #999;">
-                    <span>Estado: <span id="ticketChatStatus" style="font-weight: bold;"></span></span>
-                    <span>Categoría: <span id="ticketChatCategory"></span></span>
-                    <span>Prioridad: <span id="ticketChatPriority"></span></span>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;padding:10px;background:var(--bg-2);border-radius:var(--r-sm);flex-shrink:0;">
+                <div style="display:flex;gap:16px;font-size:11px;color:var(--txt-3);">
+                    <span>Estado: <strong id="ticketChatStatus" style="color:var(--txt);"></strong></span>
+                    <span>Categoría: <strong id="ticketChatCategory" style="color:var(--txt);"></strong></span>
+                    <span>Prioridad: <strong id="ticketChatPriority" style="color:var(--txt);"></strong></span>
                 </div>
-                <div style="font-size: 0.9em; color: #ccc;" id="ticketChatDescription"></div>
+                <div style="font-size:12px;color:var(--txt-2);" id="ticketChatDescription"></div>
             </div>
-
-            <div id="ticketChatMessages" style="flex: 1; overflow-y: auto; padding: 10px; background: #1a1a1a; border-radius: 4px; min-height: 300px; max-height: 400px; display: flex; flex-direction: column; gap: 10px;">
-                <!-- Mensajes aquí -->
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <textarea id="ticketChatInput" placeholder="Escribe tu mensaje..." style="flex: 1; padding: 10px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 4px; color: #d4d4d4; resize: none; height: 60px; font-family: inherit; font-size: 0.9em;" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendTicketMessage(); }"></textarea>
-                <button class="btn" onclick="sendTicketMessage()" style="align-self: flex-end; padding: 10px 20px;">
-                    <i data-feather="send" style="width: 16px; height: 16px;"></i>
+            <div id="ticketChatMessages" style="flex:1;overflow-y:auto;padding:10px;background:var(--bg-1);border-radius:var(--r-sm);min-height:250px;max-height:380px;display:flex;flex-direction:column;gap:8px;"></div>
+            <div style="display:flex;gap:8px;margin-top:14px;flex-shrink:0;">
+                <textarea id="ticketChatInput" placeholder="Escribe tu mensaje… (Enter para enviar)"
+                    style="flex:1;padding:9px 12px;background:var(--bg-2);border:1px solid var(--border-soft);border-radius:var(--r-sm);color:var(--txt);resize:none;height:58px;font-family:var(--font);font-size:12px;"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendTicketMessage();}"></textarea>
+                <button class="btn" onclick="sendTicketMessage()" style="align-self:flex-end;padding:10px 18px;">
+                    <i data-feather="send" style="width:14px;height:14px;"></i>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Chat Notification -->
-    <div class="chat-notification" id="chatNotification">
-        <button class="chat-notification-close" onclick="closeChatNotification()">×</button>
-        <div class="chat-notification-header">
-            <i data-feather="message-circle"></i>
-            <span>Nuevo mensaje</span>
-        </div>
-        <div class="chat-notification-user" id="notificationUser"></div>
-        <div class="chat-notification-message" id="notificationMessage"></div>
-    </div>
-
-    <!-- Context Menu -->
-    <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" onclick="contextMenuAction('rename')">
-            <i data-feather="edit-2"></i>
-            <span>Renombrar</span>
-        </div>
-        <div class="context-menu-item" onclick="contextMenuAction('setPassword')" id="setPasswordOption">
-            <i data-feather="lock"></i>
-            <span>Establecer contraseña</span>
-        </div>
-        <div class="context-menu-item" onclick="contextMenuAction('removePassword')" id="removePasswordOption" style="display: none;">
-            <i data-feather="unlock"></i>
-            <span>Quitar contraseña</span>
-        </div>
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item danger" onclick="contextMenuAction('delete')">
-            <i data-feather="trash-2"></i>
-            <span>Eliminar</span>
+    <!-- HTML Preview Modal -->
+    <div class="modal" id="previewModal" style="z-index:500;background:rgba(0,0,0,.8);">
+        <div style="width:95%;height:95%;display:flex;flex-direction:column;background:var(--bg-1);border-radius:var(--r-lg);overflow:hidden;">
+            <div style="height:40px;background:var(--bg-3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;">
+                <span style="font-weight:600;color:var(--txt);" id="previewTitle">Vista Previa</span>
+                <button onclick="closeHtmlPreview()" style="background:none;border:none;color:var(--txt-2);cursor:pointer;font-size:20px;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm);transition:all .1s;" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background='none';">×</button>
+            </div>
+            <iframe id="previewFrame" style="flex:1;border:none;background:white;"></iframe>
         </div>
     </div>
 
-    <!-- Modal para establecer contraseña del workspace -->
-    <div class="modal" id="setWorkspacePasswordModal">
-        <div class="modal-content">
+    <!-- Custom alert/confirm -->
+    <div class="modal" id="customAlertModal" style="z-index:10000;">
+        <div class="modal-content" style="max-width:440px;">
             <div class="modal-header">
-                <i data-feather="lock" style="width: 20px; height: 20px; margin-right: 8px;"></i>
-                <span>Proteger Workspace</span>
-            </div>
-            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
-                Establece una contraseña para proteger este workspace. Todos los usuarios necesitarán la contraseña para acceder.
-            </p>
-            <input type="password" class="modal-input" id="newWorkspacePassword" placeholder="Nueva contraseña">
-            <input type="password" class="modal-input" id="confirmWorkspacePassword" placeholder="Confirmar contraseña">
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeSetWorkspacePasswordModal()">Cancelar</button>
-                <button class="btn" onclick="confirmSetWorkspacePassword()">Establecer</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para cambiar contraseña del workspace -->
-    <div class="modal" id="changeWorkspacePasswordModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <i data-feather="key" style="width: 20px; height: 20px; margin-right: 8px;"></i>
-                <span>Cambiar Contraseña</span>
-            </div>
-            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
-                Introduce la contraseña actual y establece una nueva contraseña.
-            </p>
-            <input type="password" class="modal-input" id="currentPasswordChange" placeholder="Contraseña actual">
-            <input type="password" class="modal-input" id="newPasswordChange" placeholder="Nueva contraseña">
-            <input type="password" class="modal-input" id="confirmPasswordChange" placeholder="Confirmar nueva contraseña">
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeChangeWorkspacePasswordModal()">Cancelar</button>
-                <button class="btn" onclick="confirmChangeWorkspacePassword()">Cambiar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para quitar contraseña del workspace -->
-    <div class="modal" id="removeWorkspacePasswordModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <i data-feather="unlock" style="width: 20px; height: 20px; margin-right: 8px;"></i>
-                <span>Quitar Protección</span>
-            </div>
-            <p style="color: #969696; margin-bottom: 20px; font-size: 0.9em;">
-                Introduce la contraseña actual para quitar la protección de este workspace.
-            </p>
-            <input type="password" class="modal-input" id="currentWorkspacePassword" placeholder="Contraseña actual">
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeRemoveWorkspacePasswordModal()">Cancelar</button>
-                <button class="btn" onclick="confirmRemoveWorkspacePassword()">Quitar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para quitar contraseña -->
-    <div class="modal" id="removePasswordModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Quitar Contraseña</h3>
-                <button class="modal-close" onclick="closeRemovePasswordModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <p>Introduce la contraseña actual para quitar la protección:</p>
-                <input type="password" id="currentPassword" placeholder="Contraseña actual" class="modal-input">
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeRemovePasswordModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="confirmRemovePassword()">Quitar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para subir archivos -->
-    <div class="modal" id="uploadModal">
-        <div class="modal-content" style="min-width: 500px; max-width: 600px;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <span><i data-feather="upload" style="width: 20px; height: 20px; margin-right: 8px;"></i>Subir Archivos</span>
-                <button class="modal-close" onclick="closeUploadModal()" style="background: none; border: none; color: #969696; cursor: pointer; font-size: 24px;">×</button>
-            </div>
-            
-            <div id="uploadAreaContainer">
-                <div class="upload-area" id="uploadArea" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="showUploadOptions()">
-                    <div class="icon">
-                        <i data-feather="upload-cloud"></i>
-                    </div>
-                    <h3>Arrastra archivos o carpetas aquí</h3>
-                    <p>o haz clic para seleccionar</p>
-                </div>
-
-                <div class="upload-options" style="display: none;" id="uploadOptions">
-                    <button class="upload-option-btn" onclick="selectFiles()">
-                        <i data-feather="file"></i>
-                        Seleccionar Archivos
-                    </button>
-                    <button class="upload-option-btn" onclick="selectFolder()">
-                        <i data-feather="folder"></i>
-                        Seleccionar Carpeta
-                    </button>
-                </div>
-            </div>
-
-            <!-- Lista de archivos a subir -->
-            <div id="uploadFileList" style="display: none;">
-                <h4 style="color: #cccccc; margin-bottom: 15px; font-size: 0.95em;">Archivos a subir:</h4>
-                <div id="fileListContainer" style="max-height: 300px; overflow-y: auto; background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 4px; padding: 10px; margin-bottom: 20px;">
-                    <!-- Se llenará con JavaScript -->
-                </div>
-                <p style="color: #969696; font-size: 0.85em; margin-bottom: 20px;">
-                    Total: <span id="fileCount">0</span> archivo(s)
-                </p>
-            </div>
-
-            <!-- Inputs ocultos para subir archivos -->
-            <input type="file" id="fileUploadInput" style="display: none;" multiple>
-            <input type="file" id="folderUploadInput" style="display: none;" webkitdirectory directory>
-
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
-                <button class="btn" id="uploadConfirmBtn" style="display: none;" onclick="confirmUpload()">
-                    <i data-feather="upload" style="width: 14px; height: 14px;"></i>
-                    Subir
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para verificar contraseña al abrir archivo -->
-    <div class="modal" id="unlockFileModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Archivo Protegido</h3>
-                <button class="modal-close" onclick="closeUnlockModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <p>Este archivo está protegido con contraseña:</p>
-                <input type="password" id="unlockPassword" placeholder="Contraseña" class="modal-input">
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeUnlockModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="confirmUnlock()">Abrir</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal personalizado para alertas y confirmaciones -->
-    <div class="modal" id="customAlertModal" style="z-index: 10000;">
-        <div class="modal-content" style="max-width: 450px;">
-            <div class="modal-header">
-                <h3 id="customAlertTitle" style="margin: 0; display: flex; align-items: center; gap: 10px;">
-                    <i data-feather="alert-circle" id="customAlertIcon" style="width: 20px; height: 20px;"></i>
-                    <span id="customAlertTitleText">Mensaje</span>
-                </h3>
+                <i data-feather="alert-circle" id="customAlertIcon" style="width:18px;height:18px;"></i>
+                <span id="customAlertTitleText">Mensaje</span>
                 <button class="modal-close" onclick="closeCustomAlert()">×</button>
             </div>
-            <div class="modal-body">
-                <p id="customAlertMessage" style="color: #d4d4d4; line-height: 1.6; white-space: pre-wrap;"></p>
-            </div>
-            <div class="modal-footer" id="customAlertFooter">
-                <button class="btn" onclick="closeCustomAlert()" id="customAlertOkBtn">Aceptar</button>
+            <p id="customAlertMessage" style="color:var(--txt);line-height:1.6;white-space:pre-wrap;font-size:13px;margin-bottom:18px;"></p>
+            <div class="modal-actions" id="customAlertFooter">
+                <button class="btn" onclick="closeCustomAlert(true)" id="customAlertOkBtn">Aceptar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal para input de texto (prompt) -->
-    <div class="modal" id="customPromptModal" style="z-index: 10000;">
-        <div class="modal-content" style="max-width: 450px;">
+    <!-- Custom prompt -->
+    <div class="modal" id="customPromptModal" style="z-index:10000;">
+        <div class="modal-content" style="max-width:440px;">
             <div class="modal-header">
-                <h3 id="customPromptTitle">Ingresa un valor</h3>
+                <i data-feather="edit-3" style="width:18px;height:18px;color:var(--accent);"></i>
+                <span id="customPromptTitle">Ingresar valor</span>
                 <button class="modal-close" onclick="closeCustomPrompt(null)">×</button>
             </div>
-            <div class="modal-body">
-                <p id="customPromptMessage" style="margin-bottom: 15px; color: #d4d4d4;"></p>
-                <input type="text" id="customPromptInput" class="modal-input" style="width: 100%;">
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeCustomPrompt(null)">Cancelar</button>
+            <p id="customPromptMessage" style="font-size:13px;color:var(--txt-2);margin-bottom:12px;"></p>
+            <input type="text" id="customPromptInput" class="modal-input" style="margin-bottom:18px;">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeCustomPrompt(null)">Cancelar</button>
                 <button class="btn btn-primary" onclick="closeCustomPrompt(document.getElementById('customPromptInput').value)">Aceptar</button>
             </div>
         </div>
     </div>
 
-    <!-- CodeMirror JS -->
+    <!-- GitHub modal -->
+    <div class="modal" id="githubModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i data-feather="github"></i><span>Exportar a GitHub</span>
+                <button class="modal-close" onclick="closeGitHubModal()">×</button>
+            </div>
+            <label style="display:block;font-size:11px;color:var(--txt-2);margin-bottom:4px;">Repositorio (usuario/repo)</label>
+            <input type="text" class="modal-input" id="githubRepo" placeholder="usuario/repositorio">
+            <label style="display:block;font-size:11px;color:var(--txt-2);margin-bottom:4px;">Token de acceso (opcional)</label>
+            <input type="password" class="modal-input" id="githubToken" placeholder="ghp_...">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeGitHubModal()">Cancelar</button>
+                <button class="btn" onclick="exportToGitHub()"><i data-feather="upload-cloud"></i> Exportar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Chat notification -->
+    <div class="chat-notification" id="chatNotification">
+        <button class="chat-notification-close" onclick="closeChatNotification()">×</button>
+        <div class="chat-notification-header"><i data-feather="message-circle"></i><span>Nuevo mensaje</span></div>
+        <div class="chat-notification-user" id="notificationUser"></div>
+        <div class="chat-notification-message" id="notificationMessage"></div>
+    </div>
+
+    <!-- Context menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="contextMenuAction('rename')"><i data-feather="edit-2"></i><span>Renombrar</span></div>
+        <div class="context-menu-item" onclick="contextMenuAction('setPassword')" id="setPasswordOption"><i data-feather="lock"></i><span>Establecer contraseña</span></div>
+        <div class="context-menu-item" onclick="contextMenuAction('removePassword')" id="removePasswordOption" style="display:none;"><i data-feather="unlock"></i><span>Quitar contraseña</span></div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item danger" onclick="contextMenuAction('delete')"><i data-feather="trash-2"></i><span>Eliminar</span></div>
+    </div>
+
+    <!-- ── SCRIPTS ─────────────────────────────────────── -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-    
-    <!-- Modos de lenguajes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
@@ -2281,10 +1155,13 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/workspace.js"></script>
-    
+
     <script>
-        // Inicializar Feather Icons
         feather.replace();
+        // Sync status bar workspace name
+        const _wid = document.getElementById('workspaceName').textContent;
+        const _sbEl = document.getElementById('statusWorkspaceName');
+        if (_sbEl && _wid) _sbEl.textContent = _wid;
     </script>
 </body>
 </html>

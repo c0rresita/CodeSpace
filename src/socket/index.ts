@@ -1,8 +1,9 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import bcrypt from 'bcrypt';
-import { workspaces, saveWorkspace, getFileByPath, initWorkspace } from '../services/workspace.service';
+import { workspaces, saveWorkspace, getFileByPath, initWorkspace, onlineUserSockets } from '../services/workspace.service';
 import { chatService } from '../services/chat.service';
 import * as logService from '../services/log.service';
+import * as userService from '../services/user.service';
 
 export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any): void {
     // Usar sesión en WebSocket
@@ -15,6 +16,15 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
         
         // Obtener ID de sesión único del usuario
         const sessionId = (socket.request as any).session.id;
+
+        // Rastrear usuario online
+        const connectedUserId: string | undefined = (socket.request as any).session?.userId;
+        if (connectedUserId) {
+            if (!onlineUserSockets.has(connectedUserId)) {
+                onlineUserSockets.set(connectedUserId, new Set());
+            }
+            onlineUserSockets.get(connectedUserId)!.add(socket.id);
+        }
         const userIP = socket.handshake.headers['x-forwarded-for'] as string || socket.handshake.address;
         const userAgent = socket.handshake.headers['user-agent'];
 
@@ -36,8 +46,12 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
                 });
                 return;
             }
+
+            // Los admins y moderadores pasan sin contraseña
+            const session = (socket.request as any).session;
+            const isPrivileged = session?.isAdmin === true || session?.isModerator === true;
             
-            const workspace = await initWorkspace(workspaceId, password);
+            const workspace = await initWorkspace(workspaceId, password, isPrivileged);
             
             // Verificar si hay error de contraseña
             if ('error' in workspace) {
@@ -93,6 +107,24 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             }
 
             socket.emit('load-structure', workspace.structure);
+
+            // Seguimiento de propiedad / participación para usuarios autenticados
+            const userSession = (socket.request as any).session;
+            if (userSession?.userId) {
+                const ws = workspaces.get(workspaceId)!;
+                if (!ws.ownerId) {
+                    ws.ownerId = userSession.userId;
+                    await saveWorkspace(workspaceId, ws);
+                    await userService.addOwnedWorkspace(userSession.userId, workspaceId);
+                } else if (ws.ownerId !== userSession.userId) {
+                    if (!ws.participants) ws.participants = [];
+                    if (!ws.participants.includes(userSession.userId)) {
+                        ws.participants.push(userSession.userId);
+                        await saveWorkspace(workspaceId, ws);
+                        await userService.addParticipatedWorkspace(userSession.userId, workspaceId);
+                    }
+                }
+            }
 
             if (isNewUser) {
                 socket.to(workspaceId).emit('user-connected', { userId: socket.id });
@@ -326,6 +358,11 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
             
             // Confirmar al emisor
             socket.emit('chat-message-own', data);
+        });
+
+        // Indicador de escritura
+        socket.on('typing', ({ workspaceId, username, isTyping }) => {
+            socket.to(workspaceId).emit('typing', { username, isTyping });
         });
 
         // Obtener historial de chat al unirse
@@ -664,6 +701,15 @@ export function setupSocketHandlers(io: SocketIOServer, sessionMiddleware: any):
 
         // Desconexión
         socket.on('disconnect', async () => {
+            // Limpiar registro de usuario online
+            if (connectedUserId) {
+                const sockets = onlineUserSockets.get(connectedUserId);
+                if (sockets) {
+                    sockets.delete(socket.id);
+                    if (sockets.size === 0) onlineUserSockets.delete(connectedUserId);
+                }
+            }
+
             // Registrar desconexión
             if (currentWorkspace) {
                 await logService.logAccess({

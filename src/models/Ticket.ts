@@ -3,6 +3,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ITicket extends Document {
     workspaceId: string;
     userId: string;
+    userEmail?: string;
+    userUsername?: string;
+    userNickname?: string;
     sessionId: string;
     title: string;
     description: string;
@@ -14,7 +17,10 @@ export interface ITicket extends Document {
         userId: string;
         message: string;
         isAdmin: boolean;
+        authorName?: string;
         timestamp: Date;
+        readByUser?: boolean;
+        readByAdmin?: boolean;
     }>;
     createdAt: Date;
     updatedAt: Date;
@@ -25,6 +31,9 @@ export interface ITicket extends Document {
 const TicketSchema = new Schema<ITicket>({
     workspaceId: { type: String, required: true, index: true },
     userId: { type: String, required: true },
+    userEmail: { type: String, trim: true },
+    userUsername: { type: String, trim: true },
+    userNickname: { type: String, trim: true },
     sessionId: { type: String, required: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
@@ -49,7 +58,10 @@ const TicketSchema = new Schema<ITicket>({
         userId: String,
         message: String,
         isAdmin: Boolean,
-        timestamp: { type: Date, default: Date.now }
+        authorName: String,
+        timestamp: { type: Date, default: Date.now },
+        readByUser: Boolean,
+        readByAdmin: Boolean
     }],
     resolvedAt: { type: Date },
     resolvedBy: { type: String }

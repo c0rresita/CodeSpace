@@ -20,6 +20,8 @@ export interface Workspace {
     connectedUsers?: Map<string, string>;
     vanishedUsers?: Set<string>;
     lastAccess?: number;
+    ownerId?: string;
+    participants?: string[];
 }
 
 export interface WorkspaceData {
@@ -27,6 +29,8 @@ export interface WorkspaceData {
     password?: string;
     lastAccess: number;
     created: number;
+    ownerId?: string;
+    participants?: string[];
 }
 
 export interface SessionData {
@@ -34,6 +38,10 @@ export interface SessionData {
     isModerator?: boolean;
     userEmail?: string;
     adminEmail?: string;
+    userId?: string;
+    userUsername?: string;
+    userNickname?: string;
+    isLoggedIn?: boolean;
     id: string;
 }
 
@@ -44,6 +52,10 @@ declare module 'express-session' {
         isModerator?: boolean;
         userEmail?: string;
         adminEmail?: string;
+        userId?: string;
+        userUsername?: string;
+        userNickname?: string;
+        isLoggedIn?: boolean;
     }
 }
 

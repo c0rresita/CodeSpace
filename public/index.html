@@ -218,6 +218,8 @@
     </style>
 </head>
 <body>
+    <nav id="userNav" style="position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:100;"></nav>
+
     <div class="container">
         <h1>
             <i data-feather="code"></i>
@@ -315,6 +317,31 @@
 
         // Auto-focus en el input
         workspaceInput.focus();
+
+        // ── User nav ──────────────────────────────
+        const navStyle = 'display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:8px;font-size:0.84em;font-weight:600;cursor:pointer;text-decoration:none;border:none;';
+        (async function loadUserNav() {
+            const nav = document.getElementById('userNav');
+            try {
+                const res = await fetch('/api/user/me');
+                if (res.ok) {
+                    const u = await res.json();
+                    nav.innerHTML =
+                        '<a href="/dashboard" style="' + navStyle + 'background:#1c2128;color:#4ec9b0;border:1px solid #30363d;">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>' +
+                            u.username +
+                        '</a>';
+                } else {
+                    nav.innerHTML =
+                        '<a href="/signin" style="' + navStyle + 'background:#1c2128;color:#e6edf3;border:1px solid #30363d;">' +
+                            'Iniciar sesión' +
+                        '</a>' +
+                        '<a href="/signin?tab=register" style="' + navStyle + 'background:#4ec9b0;color:#0f1117;">' +
+                            'Registrarse' +
+                        '</a>';
+                }
+            } catch {}
+        })();
     </script>
 </body>
 </html>

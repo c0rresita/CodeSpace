@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión — CodeSpace</title>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f1117; --surface: #161b22; --card: #1c2128;
+            --border: #30363d; --text: #e6edf3; --muted: #7d8590;
+            --teal: #4ec9b0; --red: #ff7b72; --blue: #79c0ff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .box {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; width: 100%; max-width: 400px;
+            padding: 36px 32px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .logo {
+            display: flex; align-items: center; gap: 10px; justify-content: center;
+            color: var(--teal); font-size: 1.1em; font-weight: 700;
+            margin-bottom: 28px;
+        }
+        .logo svg { width: 20px; height: 20px; }
+        .tabs {
+            display: flex; background: var(--surface); border-radius: 8px;
+            padding: 4px; margin-bottom: 24px;
+        }
+        .tab {
+            flex: 1; padding: 8px; border: none; background: none;
+            color: var(--muted); font-size: 0.875em; font-weight: 500;
+            cursor: pointer; border-radius: 6px; transition: all 0.15s;
+        }
+        .tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 0.8em; color: var(--muted); margin-bottom: 6px; }
+        .form-input {
+            width: 100%; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 13px; color: var(--text); font-size: 0.9em;
+            transition: border-color 0.15s;
+        }
+        .form-input:focus { outline: none; border-color: var(--teal); }
+        .form-input::placeholder { color: var(--muted); }
+        .btn {
+            width: 100%; padding: 11px; border: none; border-radius: 8px;
+            background: var(--teal); color: #0f1117; font-size: 0.9em; font-weight: 600;
+            cursor: pointer; transition: opacity 0.15s; margin-top: 4px;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg {
+            background: rgba(255,123,114,0.1); border: 1px solid rgba(255,123,114,0.3);
+            color: var(--red); border-radius: 8px; padding: 10px 13px;
+            font-size: 0.84em; margin-bottom: 16px; display: none;
+        }
+        .divider {
+            text-align: center; color: var(--muted); font-size: 0.8em;
+            margin: 20px 0; position: relative;
+        }
+        .divider::before {
+            content: ''; position: absolute; top: 50%; left: 0; right: 0;
+            border-top: 1px solid var(--border);
+        }
+        .divider span { background: var(--card); padding: 0 10px; position: relative; }
+        .secondary-link {
+            text-align: center; font-size: 0.83em; color: var(--muted); margin-top: 16px;
+        }
+        .secondary-link a { color: var(--teal); text-decoration: none; }
+        .secondary-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="box">
+    <div class="logo">
+        <i data-feather="code"></i>
+        <span>CodeSpace</span>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" id="tabLogin" onclick="showTab('login')">Iniciar sesión</button>
+        <button class="tab"        id="tabRegister" onclick="showTab('register')">Registrarse</button>
+    </div>
+
+    <div id="errorMsg" class="error-msg"></div>
+
+    <!-- LOGIN -->
+    <div id="loginForm">
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="loginEmail" placeholder="tu@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <input class="form-input" type="password" id="loginPw" placeholder="••••••••" autocomplete="current-password"
+                onkeydown="if(event.key==='Enter') submitLogin()">
+        </div>
+        <button class="btn" id="loginBtn" onclick="submitLogin()">Entrar</button>
+        <div class="divider"><span>o</span></div>
+        <div class="secondary-link">
+            ¿Eres administrador? <a href="/login">Panel de administración</a>
+        </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="registerForm" style="display:none;">
+        <div class="form-group">
+            <label class="form-label">Nombre de usuario</label>
+            <input class="form-input" type="text" id="regUsername" placeholder="Tu nombre" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label class="form-label">NickName <span style="color:var(--teal);font-size:.8em;">(aparece en el chat)</span></label>
+            <input class="form-input" type="text" id="regNickname" placeholder="Tu nick en el chat" maxlength="20" autocomplete="nickname">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="regEmail" placeholder="tu@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <input class="form-input" type="password" id="regPw" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Confirmar contraseña</label>
+            <input class="form-input" type="password" id="regPwConfirm" placeholder="Repite la contraseña" autocomplete="new-password"
+                onkeydown="if(event.key==='Enter') submitRegister()">
+        </div>
+        <button class="btn" id="registerBtn" onclick="submitRegister()">Crear cuenta</button>
+    </div>
+
+    <div class="secondary-link" style="margin-top:20px;">
+        <a href="/">← Volver al inicio</a>
+    </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+if (params.get('tab') === 'register') showTab('register');
+
+function showTab(tab) {
+    document.getElementById('loginForm').style.display    = tab === 'login'    ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+    document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+    hideError();
+}
+
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+function hideError() { document.getElementById('errorMsg').style.display = 'none'; }
+
+async function submitLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pw    = document.getElementById('loginPw').value;
+    if (!email || !pw) { showError('Completa todos los campos'); return; }
+
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Entrando…';
+    hideError();
+
+    try {
+        const res  = await fetch('/api/user/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pw })
+        });
+        const data = await res.json();
+        if (!res.ok) { showError(data.error || 'Error al iniciar sesión'); }
+        else {
+            const redirect = params.get('redirect') || '/dashboard';
+            window.location.href = redirect;
+        }
+    } catch { showError('Error de conexión'); }
+    finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+}
+
+async function submitRegister() {
+    const username = document.getElementById('regUsername').value.trim();
+    const nickname = document.getElementById('regNickname').value.trim();
+    const email    = document.getElementById('regEmail').value.trim();
+    const pw       = document.getElementById('regPw').value;
+    const pwc      = document.getElementById('regPwConfirm').value;
+
+    if (!username || !nickname || !email || !pw) { showError('Completa todos los campos'); return; }
+    if (nickname.length < 2) { showError('El NickName debe tener al menos 2 caracteres'); return; }
+    if (pw !== pwc) { showError('Las contraseñas no coinciden'); return; }
+    if (pw.length < 6) { showError('Mínimo 6 caracteres'); return; }
+
+    const btn = document.getElementById('registerBtn');
+    btn.disabled = true; btn.textContent = 'Creando cuenta…';
+    hideError();
+
+    try {
+        const res  = await fetch('/api/user/register', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pw, username, nickname })
+        });
+        const data = await res.json();
+        if (!res.ok) { showError(data.error || 'Error al registrarse'); }
+        else { window.location.href = '/dashboard'; }
+    } catch { showError('Error de conexión'); }
+    finally { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
+}
+
+feather.replace();
+</script>
+</body>
+</html>
